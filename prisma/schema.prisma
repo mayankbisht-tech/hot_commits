@@ -1,0 +1,174 @@
+// This is your Prisma schema file.
+// Learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─── Models ───────────────────────────────────────────────────────────────────
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  role      String   // TPO, COMPANY, STUDENT
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  student Student?
+  company Company?
+  tpo     TPOAdmin?
+}
+
+model TPOAdmin {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name   String
+}
+
+model Student {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name            String
+  rollNo          String   @unique
+  branch          String
+  year            Int
+  cgpa            Float
+  backlogs        Int      @default(0)
+  phone           String?
+  class10         Float
+  class12         Float
+  graduationYear  Int
+  placementStatus String   @default("UNPLACED") // PLACED, UNPLACED, OPTED_OUT
+  dreamEligible   Boolean  @default(false)
+  resumeUrl       String?
+  resumeVerified  Boolean  @default(false)
+  // Skills stored as JSON string (SQLite compatibility)
+  skillsJson      String   @default("[]")
+
+  applications Application[]
+  enrollments  Enrollment[]
+  offers       Offer[]
+}
+
+model Company {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name          String
+  tier          String   @default("TIER_2") // TIER_1, TIER_2, TIER_3
+  industry      String
+  website       String?
+  contactPerson String?
+  logo          String?
+
+  drives Drive[]
+}
+
+model Drive {
+  id             String   @id @default(cuid())
+  companyId      String
+  company        Company  @relation(fields: [companyId], references: [id])
+  role           String
+  ctc            Float
+  location       String
+  mode           String   @default("ONSITE") // ONSITE, REMOTE, HYBRID
+  deadline       DateTime
+  driveDate      DateTime
+  status         String   @default("UPCOMING") // UPCOMING, ACTIVE, COMPLETED, CANCELLED
+  approvalStatus String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  jobType        String   @default("FULL_TIME") // FULL_TIME, INTERNSHIP, PPO
+  description    String?
+  // Arrays stored as JSON (SQLite compatibility)
+  roundsJson     String   @default("[]")
+  branchesJson   String   @default("[]")
+  gradYearsJson  String   @default("[]")
+
+  // Eligibility rules (inline)
+  minCGPA     Float  @default(6.0)
+  maxBacklogs Int    @default(0)
+  minClass10  Float  @default(60.0)
+  minClass12  Float  @default(60.0)
+  offerPolicy String @default("STANDARD") // STANDARD, ONE_OFFER, DREAM_OFFER
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  applications Application[]
+  offers       Offer[]
+}
+
+model Application {
+  id        String   @id @default(cuid())
+  studentId String
+  student   Student  @relation(fields: [studentId], references: [id])
+  driveId   String
+  drive     Drive    @relation(fields: [driveId], references: [id])
+  status    String   @default("APPLIED") // APPLIED, SHORTLISTED, INTERVIEW_SCHEDULED, OFFER_EXTENDED, OFFER_ACCEPTED, REJECTED, WITHDRAWN
+  resumeUrl String?
+  appliedOn DateTime @default(now())
+
+  stageHistory StageEntry[]
+
+  @@unique([studentId, driveId])
+}
+
+model StageEntry {
+  id            String      @id @default(cuid())
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  stage         String
+  date          DateTime    @default(now())
+  note          String?
+}
+
+model Offer {
+  id        String   @id @default(cuid())
+  studentId String
+  student   Student  @relation(fields: [studentId], references: [id])
+  driveId   String
+  drive     Drive    @relation(fields: [driveId], references: [id])
+  ctc       Float
+  status    String   @default("PENDING") // PENDING, ACCEPTED, DECLINED
+  offeredOn DateTime @default(now())
+  note      String?
+
+  @@unique([studentId, driveId])
+}
+
+model TrainingProgram {
+  id          String   @id @default(cuid())
+  title       String
+  type        String   // APTITUDE, SOFT_SKILLS, TECHNICAL, CERTIFICATION
+  date        DateTime
+  time        String
+  venue       String
+  mode        String   @default("OFFLINE") // OFFLINE, ONLINE, HYBRID
+  capacity    Int
+  facilitator String
+  description String?
+  tagsJson    String   @default("[]")
+  createdAt   DateTime @default(now())
+
+  enrollments Enrollment[]
+}
+
+model Enrollment {
+  id                String          @id @default(cuid())
+  studentId         String
+  student           Student         @relation(fields: [studentId], references: [id])
+  trainingProgramId String
+  trainingProgram   TrainingProgram @relation(fields: [trainingProgramId], references: [id])
+  attended          Boolean?
+  enrolledOn        DateTime        @default(now())
+
+  @@unique([studentId, trainingProgramId])
+}

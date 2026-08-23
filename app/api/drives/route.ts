@@ -41,14 +41,28 @@ export async function GET(req: Request) {
       orderBy: { createdAt: 'desc' }
     });
 
-    const parsedDrives = drives.map(drive => ({
-      ...drive,
-      status: drive.status.toLowerCase(),
-      approvalStatus: drive.approvalStatus.toLowerCase(),
-      branches: drive.branchesJson ? JSON.parse(drive.branchesJson) : [],
-      rounds: drive.roundsJson ? JSON.parse(drive.roundsJson) : [],
-      gradYears: drive.gradYearsJson ? JSON.parse(drive.gradYearsJson) : [],
-    }));
+    const parsedDrives = drives.map(drive => {
+      let parsedOpenings = 5;
+      let cleanedDescription = drive.description || '';
+
+      // Extract openings metadata if encoded in description or default
+      if (drive.description && drive.description.includes('__OPENINGS:')) {
+        const parts = drive.description.split('__OPENINGS:');
+        cleanedDescription = parts[0].trim();
+        parsedOpenings = parseInt(parts[1]) || 5;
+      }
+
+      return {
+        ...drive,
+        description: cleanedDescription,
+        openings: parsedOpenings,
+        status: drive.status.toLowerCase(),
+        approvalStatus: drive.approvalStatus.toLowerCase(),
+        branches: drive.branchesJson ? JSON.parse(drive.branchesJson) : [],
+        rounds: drive.roundsJson ? JSON.parse(drive.roundsJson) : [],
+        gradYears: drive.gradYearsJson ? JSON.parse(drive.gradYearsJson) : [],
+      };
+    });
 
     return NextResponse.json({ drives: parsedDrives });
   } catch (error) {
@@ -75,10 +89,27 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Company ID is required' }, { status: 400 });
     }
 
-    const approvalStatus = user.role === 'COMPANY' ? 'PENDING' : 'APPROVED';
-    const status = user.role === 'COMPANY' ? 'UPCOMING' : 'ACTIVE';
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
     const deadlineDate = body.deadline ? new Date(body.deadline) : new Date();
     const driveDate = body.driveDate ? new Date(body.driveDate) : deadlineDate;
+
+    const driveDateZero = new Date(driveDate);
+    driveDateZero.setHours(0, 0, 0, 0);
+
+    if (driveDateZero < today) {
+      return NextResponse.json({ 
+        error: 'It is not possible to post or schedule a placement drive before the current date (in the past).' 
+      }, { status: 400 });
+    }
+
+    const approvalStatus = user.role === 'COMPANY' ? 'PENDING' : 'APPROVED';
+    const status = user.role === 'COMPANY' ? 'UPCOMING' : 'ACTIVE';
+
+    const openingsCount = Math.max(1, Number(body.openings) || 5);
+    const rawDesc = (body.description || `Campus hiring drive for ${body.role}`).trim();
+    const fullDescription = `${rawDesc}\n__OPENINGS:${openingsCount}`;
 
     const drive = await prisma.drive.create({
       data: {
@@ -89,7 +120,7 @@ export async function POST(req: Request) {
         deadline: deadlineDate,
         driveDate: driveDate,
         jobType: body.jobType || 'FULL_TIME',
-        description: body.description || '',
+        description: fullDescription,
         status: status,
         approvalStatus: approvalStatus,
         minCGPA: Number(body.minCGPA) || 6.0,
@@ -107,9 +138,15 @@ export async function POST(req: Request) {
       }
     });
 
-    return NextResponse.json({ drive });
-  } catch (error) {
+    return NextResponse.json({ 
+      drive: {
+        ...drive,
+        description: rawDesc,
+        openings: openingsCount,
+      } 
+    });
+  } catch (error: any) {
     console.error('Create drive error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
   }
 }

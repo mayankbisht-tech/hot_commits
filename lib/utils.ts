@@ -67,15 +67,15 @@ export function getStatusLabel(status: string): string {
 }
 
 export function getTierColor(tier: string): { bg: string; text: string } {
-  if (tier === "Tier-1") return { bg: "#FFF7ED", text: "#C2410C" };
-  if (tier === "Tier-2") return { bg: "#FFFBEB", text: "#B45309" };
-  return { bg: "#F0FDF4", text: "#15803D" };
+  if (tier === "Tier-1") return { bg: "#F1E9D8", text: "#8B1A1A" };
+  if (tier === "Tier-2") return { bg: "#F1E9D8", text: "#C8A243" };
+  return { bg: "#F1E9D8", text: "#4A7C59" };
 }
 
 export function getCGPAColor(cgpa: number): string {
-  if (cgpa >= 8) return "text-green-600";
-  if (cgpa >= 7) return "text-orange-500";
-  return "text-red-500";
+  if (cgpa >= 8) return "text-[#4A7C59]";
+  if (cgpa >= 7) return "text-[#C8A243]";
+  return "text-[#C85555]";
 }
 
 export function getInitials(name: string): string {

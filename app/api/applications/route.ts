@@ -17,8 +17,17 @@ export async function GET(req: NextRequest) {
     let whereClause: any = {};
 
     if (session.user.role === 'STUDENT') {
-      const studentProfileId = session.user.profileId || session.user.id;
-      whereClause.studentId = studentProfileId;
+      const studentRec = await prisma.student.findFirst({
+        where: {
+          OR: [
+            { id: session.user.profileId || '' },
+            { userId: session.user.userId || session.user.id || '' },
+            { user: { email: session.user.email?.toLowerCase().trim() || '' } }
+          ]
+        }
+      });
+      const resolvedStudentId = studentRec?.id || session.user.profileId || session.user.id;
+      whereClause.studentId = resolvedStudentId;
       if (driveId) whereClause.driveId = driveId;
       if (status) whereClause.status = status.toUpperCase();
     } else if (session.user.role === 'COMPANY') {
@@ -74,8 +83,21 @@ export async function POST(req: NextRequest) {
     }
 
     const studentProfileId = session.user.profileId || session.user.id;
-    if (!studentProfileId) {
-      return NextResponse.json({ error: 'Student profile not found' }, { status: 400 });
+
+    // Fetch student profile and drive rules
+    const student = await prisma.student.findFirst({
+      where: {
+        OR: [
+          { id: studentProfileId || '' },
+          { userId: session.user.userId || session.user.id || '' },
+          { user: { email: session.user.email?.toLowerCase().trim() || '' } }
+        ]
+      },
+      include: { offers: true }
+    });
+    
+    if (!student) {
+      return NextResponse.json({ error: 'Student profile not found' }, { status: 404 });
     }
 
     const body = await req.json();
@@ -88,22 +110,12 @@ export async function POST(req: NextRequest) {
     // Check if already applied
     const existingApp = await prisma.application.findUnique({
       where: {
-        studentId_driveId: { studentId: studentProfileId, driveId }
+        studentId_driveId: { studentId: student.id, driveId }
       }
     });
 
     if (existingApp) {
       return NextResponse.json({ error: 'Already applied to this drive' }, { status: 400 });
-    }
-
-    // Fetch student profile and drive rules
-    const student = await prisma.student.findUnique({
-      where: { id: studentProfileId },
-      include: { offers: true }
-    });
-    
-    if (!student) {
-      return NextResponse.json({ error: 'Student profile not found' }, { status: 404 });
     }
 
     const drive = await prisma.drive.findUnique({
@@ -123,10 +135,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Ineligible: Branch not eligible' }, { status: 400 });
     }
 
-    // Enforce offer policy
-    const hasAcceptedOffer = student.placementStatus === 'PLACED';
-    if (drive.offerPolicy === 'ONE_OFFER' && hasAcceptedOffer) {
-      return NextResponse.json({ error: 'Ineligible: One-offer policy active' }, { status: 400 });
+    // Enforce offer policy & 2X policy
+    const acceptedOffers = student.offers.filter(o => o.status === 'ACCEPTED');
+    const hasAcceptedOffer = student.placementStatus === 'PLACED' || acceptedOffers.length > 0;
+    const initialOfferCTC = acceptedOffers.length > 0 ? Math.max(...acceptedOffers.map(o => o.ctc)) : 12;
+
+    if (hasAcceptedOffer && drive.ctc < initialOfferCTC * 2) {
+      return NextResponse.json({ 
+        error: `Ineligible under 2X Placement Policy: You hold an initial offer of ₹${initialOfferCTC} LPA and can only apply to drives offering at least ₹${initialOfferCTC * 2} LPA.` 
+      }, { status: 400 });
     }
 
     // Create Application

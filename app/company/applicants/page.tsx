@@ -1,10 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import useSWR, { mutate } from "swr";
 import { 
   ChevronRight, X, IndianRupee, AlertTriangle, 
-  ChevronDown, Search, Filter, Loader2, CheckCircle2, UserCheck, ShieldAlert, Award, AlertCircle
+  ChevronDown, Search, Filter, Loader2, CheckCircle2, UserCheck, ShieldAlert, Award, AlertCircle,
+  Briefcase, User, GraduationCap, Clock, ArrowRight, ShieldCheck, Mail, Phone, BookOpen,
+  FileText, Star, Trash2, Check, CheckSquare, Square, Eye, Sparkles, RefreshCw, MoreVertical, GripVertical
 } from "lucide-react";
 import { fetcher } from "@/lib/api-client";
 
@@ -12,42 +15,76 @@ interface ApplicationItem {
   id: string;
   status: string;
   appliedOn: string;
+  driveId?: string;
   student: {
     id: string;
     name: string;
     rollNo: string;
     branch: string;
     cgpa: number;
+    phone?: string;
+    email?: string;
     skills?: string[];
+    backlogs?: number;
+    class10?: number;
+    class12?: number;
+    graduationYear?: number;
   };
   drive: {
     id: string;
     role: string;
     ctc: number;
+    companyId?: string;
     company?: { name: string };
   };
-  stageHistory?: any[];
+  stageHistory?: Array<{
+    id?: string;
+    stage: string;
+    date: string;
+    note?: string;
+  }>;
 }
 
-export default function CompanyApplicantsPage() {
-  const { data: appData, isLoading } = useSWR<{ applications: ApplicationItem[] }>(
+function CompanyApplicantsContent() {
+  const searchParams = useSearchParams();
+  const initialDriveId = searchParams?.get('driveId') || "ALL";
+
+  const { data: appData, isLoading, isValidating } = useSWR<{ applications: ApplicationItem[] }>(
     '/api/applications', 
     fetcher, 
     { refreshInterval: 2000 }
   );
   const { data: drivesData } = useSWR<any>('/api/drives', fetcher);
 
-  const [selectedDriveId, setSelectedDriveId] = useState<string>("ALL");
+  // States
+  const [selectedDriveId, setSelectedDriveId] = useState<string>(initialDriveId);
+  const [activeStageTab, setActiveStageTab] = useState<string>("APPLIED");
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedApplication, setSelectedApplication] = useState<ApplicationItem | null>(null);
+  const [resumePreviewApp, setResumePreviewApp] = useState<ApplicationItem | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState("");
+  const [showPolicyBanner, setShowPolicyBanner] = useState(true);
+  const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
+  const [starredIds, setStarredIds] = useState<Set<string>>(new Set());
 
-  // Centered Modal Dialog for Errors & Confirmation (Requirement 5)
+  // Sync selectedDriveId from URL searchParams
+  useEffect(() => {
+    const driveFromUrl = searchParams?.get('driveId');
+    if (driveFromUrl) {
+      setSelectedDriveId(driveFromUrl);
+    }
+  }, [searchParams]);
+
+  // Centered Modal Dialog for Alerts & Confirmations
   const [modalDialog, setModalDialog] = useState<{
     isOpen: boolean;
-    type: 'success' | 'error' | 'info';
+    type: 'success' | 'error' | 'info' | 'confirm';
     title: string;
     message: string;
+    confirmLabel?: string;
+    cancelLabel?: string;
+    onConfirm?: () => void;
   }>({
     isOpen: false,
     type: 'info',
@@ -59,332 +96,720 @@ export default function CompanyApplicantsPage() {
     setModalDialog({ isOpen: true, type, title, message });
   };
 
-  const applications = appData?.applications || [];
-  const drives = drivesData?.drives || [];
-
-  const stages = [
-    { id: "APPLIED", name: "Applied", color: "bg-stone-100 text-stone-700", border: "border-stone-200" },
-    { id: "SHORTLISTED", name: "Shortlisted", color: "bg-amber-100 text-amber-800", border: "border-amber-400" },
-    { id: "INTERVIEW_SCHEDULED", name: "Interview Scheduled", color: "bg-orange-100 text-orange-800", border: "border-orange-500" },
-    { id: "OFFER_EXTENDED", name: "Offers Extended", color: "bg-green-100 text-green-800", border: "border-green-500" },
-  ];
-
-  const getNextStage = (current: string): string => {
-    switch (current?.toUpperCase()) {
-      case 'APPLIED': return 'SHORTLISTED';
-      case 'SHORTLISTED': return 'INTERVIEW_SCHEDULED';
-      case 'INTERVIEW_SCHEDULED': return 'OFFER_EXTENDED';
-      default: return 'OFFER_EXTENDED';
-    }
-  };
-
   const showToast = (msg: string) => {
     setToastMsg(msg);
-    setTimeout(() => setToastMsg(""), 3500);
+    setTimeout(() => setToastMsg(""), 4000);
   };
 
-  // Move candidate to next stage (Functional Real-time Update)
-  const handleUpdateStatus = async (appId: string, nextStatus: string) => {
-    setProcessingId(appId);
+  // Pipeline Stage Tabs (Unified 5 stages)
+  const stages = [
+    { key: "APPLIED", label: "Applied", color: "#5E544A" },
+    { key: "SHORTLISTED", label: "Shortlisted", color: "#C8A243" },
+    { key: "INTERVIEW_SCHEDULED", label: "Interview Scheduled", color: "#8B1A1A" },
+    { key: "OFFER_EXTENDED", label: "Offers Extended", color: "#4A7C59" },
+    { key: "OFFER_ACCEPTED", label: "Placed / Accepted", color: "#4A7C59" },
+  ];
+
+  const applications: ApplicationItem[] = appData?.applications || [];
+  const drivesList: Array<{ id: string; role: string; ctc: number }> = drivesData?.drives || [];
+
+  // Scoped Filtering
+  const driveFilteredApps = applications.filter((app) => {
+    if (selectedDriveId !== "ALL" && app.driveId !== selectedDriveId) return false;
+    return true;
+  });
+
+  // Count candidates per stage tab
+  const getStageCount = (stageKey: string) => {
+    return driveFilteredApps.filter((a) => a.status?.toUpperCase() === stageKey).length;
+  };
+
+  // Filter for active stage & search query
+  const displayedApplications = driveFilteredApps.filter((app) => {
+    const appStatus = app.status?.toUpperCase() || "APPLIED";
+    if (appStatus !== activeStageTab) return false;
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      const matchName = app.student?.name?.toLowerCase().includes(q);
+      const matchRoll = app.student?.rollNo?.toLowerCase().includes(q);
+      const matchBranch = app.student?.branch?.toLowerCase().includes(q);
+      const matchSkills = (app.student?.skills || []).some(s => s.toLowerCase().includes(q));
+      if (!matchName && !matchRoll && !matchBranch && !matchSkills) return false;
+    }
+    return true;
+  });
+
+  // Action Handlers
+  const handleAdvanceCandidate = async (app: ApplicationItem) => {
+    const stageFlow: Record<string, string> = {
+      APPLIED: "SHORTLISTED",
+      SHORTLISTED: "INTERVIEW_SCHEDULED",
+      INTERVIEW_SCHEDULED: "OFFER_EXTENDED",
+      OFFER_EXTENDED: "OFFER_ACCEPTED",
+    };
+
+    const nextStatus = stageFlow[app.status?.toUpperCase() || "APPLIED"];
+    if (!nextStatus) return;
+
+    setProcessingId(app.id);
+
     try {
-      const res = await fetch(`/api/applications/${appId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch(`/api/applications/${app.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           status: nextStatus,
-          note: `Advanced to ${nextStatus.replace(/_/g, ' ')} by recruiter.`
+          offerCtc: app.drive?.ctc
         }),
-        credentials: 'include'
+        credentials: "include",
       });
-      
-      const resJson = await res.json();
-      if (!res.ok) throw new Error(resJson.error || 'Failed to update stage');
-      
+
+      if (!res.ok) throw new Error("Failed to advance candidate");
+
       await mutate('/api/applications');
-      await mutate('/api/reports/stats');
-      showToast(`Candidate status updated to ${nextStatus.replace(/_/g, ' ')}!`);
-      if (selectedApplication?.id === appId) {
-        setSelectedApplication(prev => prev ? { ...prev, status: nextStatus } : null);
+      await mutate('/api/notifications');
+
+      const nextLabel = stages.find(s => s.key === nextStatus)?.label || nextStatus;
+      showToast(`Advanced ${app.student?.name} to "${nextLabel}" ✓`);
+      
+      if (selectedApplication?.id === app.id) {
+        setSelectedApplication({
+          ...selectedApplication,
+          status: nextStatus,
+        });
       }
     } catch (err: any) {
-      showPopup('error', 'Stage Update Failed', err.message || 'Could not advance candidate stage.');
+      showPopup('error', 'Update Failed', err.message || "Failed to update candidate stage.");
     } finally {
       setProcessingId(null);
     }
   };
 
-  const filteredApps = applications.filter(a => {
-    if (selectedDriveId !== "ALL" && a.drive?.id !== selectedDriveId) return false;
-    return true;
-  });
+  const handleRejectCandidate = (app: ApplicationItem) => {
+    setModalDialog({
+      isOpen: true,
+      type: 'confirm',
+      title: 'Reject Candidate Confirmation',
+      message: `Are you sure you want to reject ${app.student?.name || 'this candidate'} for the ${app.drive?.role || 'placement'} role?`,
+      confirmLabel: 'Yes, Reject Candidate',
+      cancelLabel: 'Keep Candidate',
+      onConfirm: async () => {
+        setModalDialog(prev => ({ ...prev, isOpen: false }));
+        setProcessingId(app.id);
 
-  const getCgpaColor = (cgpa: number) => {
-    if (cgpa >= 9) return "bg-green-100 text-green-700";
-    if (cgpa >= 8) return "bg-blue-100 text-blue-700";
-    return "bg-amber-100 text-amber-700";
+        try {
+          const res = await fetch(`/api/applications/${app.id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+              status: "REJECTED",
+              note: "Candidate did not clear evaluation round."
+            }),
+            credentials: "include",
+          });
+
+          if (!res.ok) throw new Error("Failed to reject candidate");
+
+          await mutate('/api/applications');
+          await mutate('/api/notifications');
+
+          showToast(`${app.student?.name} marked as Rejected.`);
+          if (selectedApplication?.id === app.id) setSelectedApplication(null);
+        } catch (err: any) {
+          showPopup('error', 'Action Failed', err.message || "Failed to reject candidate.");
+        } finally {
+          setProcessingId(null);
+        }
+      }
+    });
   };
 
+  const toggleSelectRow = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedRowIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedRowIds.size === displayedApplications.length && displayedApplications.length > 0) {
+      setSelectedRowIds(new Set());
+    } else {
+      setSelectedRowIds(new Set(displayedApplications.map(a => a.id)));
+    }
+  };
+
+  const toggleStar = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setStarredIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const getMatchScore = (cgpa: number) => {
+    if (cgpa >= 9.0) return "98% Match";
+    if (cgpa >= 8.5) return "94% Match";
+    if (cgpa >= 8.0) return "89% Match";
+    if (cgpa >= 7.5) return "82% Match";
+    return "75% Match";
+  };
+
+  const selectedDrive = drivesList.find(d => d.id === selectedDriveId);
+
   return (
-    <div className="h-full flex flex-col space-y-4 p-6 text-stone-800 animate-fade-in select-none">
-      {/* Toast feedback */}
+    <div className="max-w-7xl mx-auto p-6 space-y-5 text-[#1C1A1A] animate-fade-in select-none bg-[#F8F5EC]">
+      {/* Toast Notification */}
       {toastMsg && (
-        <div className="fixed top-20 right-8 z-50 bg-stone-900 text-white px-4 py-2.5 rounded-xl shadow-xl flex items-center gap-2 text-xs font-semibold animate-scale-in">
-          <CheckCircle2 size={15} className="text-green-400" />
+        <div className="fixed top-20 right-8 z-[99999] bg-[#1C1A1A] text-white px-5 py-3 rounded-2xl shadow-xl flex items-center gap-2 text-xs font-bold animate-scale-in border border-[#E3D8C4]">
+          <CheckCircle2 size={16} className="text-[#4A7C59]" />
           <span>{toastMsg}</span>
         </div>
       )}
 
-      {/* Policy Banner */}
-      <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 flex items-start space-x-3 text-xs">
-        <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0 mt-0.5" />
+      {/* Top Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 rounded-2xl border border-[#E3D8C4] shadow-xs">
         <div>
-          <h4 className="font-bold text-amber-900">One-Offer-One-Student Policy Active</h4>
-          <p className="text-amber-700 mt-0.5">Students who accept an offer are automatically marked PLACED and gated from conflicting standard drives.</p>
+          <h1 className="text-xl font-bold text-[#1C1A1A]">Candidate Application Tracking</h1>
+          <p className="text-xs text-[#5E544A] mt-0.5 font-medium">Stage-by-stage candidate review and recruitment pipeline</p>
         </div>
-      </div>
 
-      {/* Header & Filter Controls */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-2xl border border-stone-200 shadow-xs">
-        <div>
-          <h2 className="text-lg font-bold text-stone-900">Candidate Pipeline & Shortlisting</h2>
-          <p className="text-xs text-stone-500 mt-0.5">Real-time candidate stages, interviews, and offer management</p>
-        </div>
-        
-        <div className="flex items-center gap-3 w-full sm:w-auto">
-          <select 
-            value={selectedDriveId}
-            onChange={(e) => setSelectedDriveId(e.target.value)}
-            className="border border-stone-200 rounded-xl px-3 py-2 text-xs font-semibold bg-stone-50 focus:outline-none focus:ring-1 focus:ring-orange-500"
-          >
-            <option value="ALL">All Active Drives ({drives.length})</option>
-            {drives.map((d: any) => (
-              <option key={d.id} value={d.id}>{d.role} (₹{d.ctc} LPA)</option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {/* Kanban Board */}
-      <div className="flex-1 overflow-x-auto pb-4">
-        {isLoading ? (
-          <div className="p-12 text-center text-xs text-stone-400 flex items-center justify-center gap-2">
-            <Loader2 className="animate-spin" size={16} /> Loading candidate pipeline...
+        {/* Drive Filter Selector */}
+        <div className="flex items-center gap-2.5 w-full sm:w-auto">
+          <label className="text-xs font-bold text-[#5E544A] shrink-0">Drive Filter:</label>
+          <div className="relative flex-1 sm:w-64">
+            <select
+              value={selectedDriveId}
+              onChange={(e) => setSelectedDriveId(e.target.value)}
+              className="w-full appearance-none bg-[#F8F5EC] border border-[#E3D8C4] rounded-xl px-3.5 py-2 pr-8 text-xs font-bold text-[#1C1A1A] focus:outline-none focus:ring-1 focus:ring-[#8B1A1A] cursor-pointer"
+            >
+              <option value="ALL">All Company Postings ({applications.length})</option>
+              {drivesList.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.role} (₹{d.ctc} LPA)
+                </option>
+              ))}
+            </select>
+            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8B7B6F] pointer-events-none" />
           </div>
-        ) : (
-          <div className="flex gap-4 h-full min-w-max">
-            {stages.map((stage) => {
-              const stageApplicants = filteredApps.filter(a => {
-                const s = a.status?.toUpperCase();
-                if (stage.id === "OFFER_EXTENDED") {
-                  return s === "OFFER_EXTENDED" || s === "OFFER_ACCEPTED";
-                }
-                return s === stage.id;
-              });
-              
+        </div>
+      </div>
+
+      {/* Policy Governance Banner */}
+      {showPolicyBanner && (
+        <div className="bg-[#F1E9D8] border border-[#E3D8C4] rounded-2xl p-4 flex items-center justify-between text-xs animate-fade-in shadow-2xs">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-white border border-[#E3D8C4] flex items-center justify-center text-[#8B1A1A] shrink-0 font-bold">
+              <ShieldCheck size={16} />
+            </div>
+            <div>
+              <p className="font-bold text-[#1C1A1A]">One-Offer-One-Student Policy Active</p>
+              <p className="text-[#5E544A] mt-0.5 text-[11px] font-medium">
+                Students who accept an offer are automatically marked PLACED and locked from competing standard drives.
+              </p>
+            </div>
+          </div>
+          <button 
+            onClick={() => setShowPolicyBanner(false)}
+            className="text-[#8B7B6F] hover:text-[#1C1A1A] p-1"
+          >
+            <X size={15} />
+          </button>
+        </div>
+      )}
+
+      {/* Horizontal Stage Tab Navigation */}
+      <div className="bg-white p-1.5 rounded-2xl border border-[#E3D8C4] shadow-xs flex items-center overflow-x-auto gap-1">
+        {stages.map((st) => {
+          const isActive = activeStageTab === st.key;
+          const count = getStageCount(st.key);
+
+          return (
+            <button
+              key={st.key}
+              onClick={() => {
+                setActiveStageTab(st.key);
+                setSelectedRowIds(new Set());
+              }}
+              className={`flex-1 min-w-[150px] py-2.5 px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                isActive
+                  ? "bg-[#8B1A1A] text-white shadow-xs"
+                  : "text-[#5E544A] hover:bg-[#F8F5EC] hover:text-[#1C1A1A]"
+              }`}
+            >
+              <span>{st.label}</span>
+              <span
+                className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                  isActive ? "bg-white/20 text-white" : "bg-[#F1E9D8] text-[#1C1A1A] border border-[#E3D8C4]"
+                }`}
+              >
+                {count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Search & Bulk Action Bar */}
+      <div className="bg-white p-4 rounded-2xl border border-[#E3D8C4] shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+        <div className="relative w-full sm:w-80">
+          <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8B7B6F]" />
+          <input
+            type="text"
+            placeholder="Search by candidate, roll no, or skills..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-3 py-2 bg-[#F8F5EC] border border-[#E3D8C4] rounded-xl text-xs text-[#1C1A1A] placeholder-[#8B7B6F] focus:outline-none focus:ring-1 focus:ring-[#8B1A1A] font-semibold select-text"
+          />
+        </div>
+
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+          <span className="text-[11px] text-[#5E544A] font-semibold">
+            Showing <strong className="text-[#1C1A1A]">{displayedApplications.length}</strong> candidate(s)
+          </span>
+
+          {selectedRowIds.size > 0 && (
+            <div className="flex items-center gap-1.5 bg-[#F1E9D8] border border-[#E3D8C4] px-3 py-1.5 rounded-xl animate-scale-in">
+              <span className="font-bold text-[#8B1A1A] text-[11px]">{selectedRowIds.size} selected</span>
+              <button
+                onClick={() => {
+                  displayedApplications
+                    .filter(a => selectedRowIds.has(a.id))
+                    .forEach(a => handleAdvanceCandidate(a));
+                }}
+                className="px-2 py-0.5 bg-[#8B1A1A] text-white rounded font-bold text-[10px] hover:bg-[#A63030]"
+              >
+                Advance All
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Gmail-Style Dense Candidate Application Rows */}
+      <div className="bg-white rounded-2xl border border-[#E3D8C4] shadow-card overflow-hidden">
+        {/* Table Header Controls */}
+        <div className="px-4 py-2.5 bg-[#F8F5EC] border-b border-[#E3D8C4] flex items-center justify-between text-[11px] text-[#5E544A] font-bold">
+          <div className="flex items-center gap-3">
+            <button onClick={toggleSelectAll} className="text-[#8B7B6F] hover:text-[#1C1A1A] p-0.5">
+              {selectedRowIds.size === displayedApplications.length && displayedApplications.length > 0 ? (
+                <CheckSquare size={16} className="text-[#8B1A1A]" />
+              ) : (
+                <Square size={16} />
+              )}
+            </button>
+            <span>Candidate Name & Profile</span>
+          </div>
+          <div className="flex items-center gap-8">
+            <span>Match & Package</span>
+            <span className="hidden sm:inline">Actions</span>
+          </div>
+        </div>
+
+        {isLoading ? (
+          <div className="p-16 text-center text-xs text-[#8B7B6F] flex items-center justify-center gap-2">
+            <Loader2 size={16} className="animate-spin text-[#8B1A1A]" /> Loading candidates...
+          </div>
+        ) : displayedApplications.length > 0 ? (
+          <div className="divide-y divide-[#E3D8C4]">
+            {displayedApplications.map((app) => {
+              const isSelected = selectedRowIds.has(app.id);
+              const isStarred = starredIds.has(app.id);
+              const isProcessing = processingId === app.id;
+
+              const stageFlow: Record<string, string> = {
+                APPLIED: "Shortlist",
+                SHORTLISTED: "Schedule Interview",
+                INTERVIEW_SCHEDULED: "Extend Offer",
+                OFFER_EXTENDED: "Confirm Placed",
+              };
+              const nextStageLabel = stageFlow[app.status?.toUpperCase() || "APPLIED"] || "Advance";
+
               return (
-                <div key={stage.id} className="w-80 flex flex-col bg-stone-50/70 rounded-2xl border border-stone-200 overflow-hidden">
-                  <div className={`p-3.5 border-b border-stone-200 bg-white flex justify-between items-center border-t-4 ${stage.border}`}>
-                    <h3 className="font-bold text-xs text-stone-800">{stage.name}</h3>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${stage.color}`}>
-                      {stageApplicants.length}
-                    </span>
-                  </div>
-                  
-                  <div className="flex-1 p-3 overflow-y-auto space-y-2.5">
-                    {stageApplicants.map((app) => {
-                      const isOfferAccepted = app.status?.toUpperCase() === 'OFFER_ACCEPTED';
-                      const isOfferExtended = app.status?.toUpperCase() === 'OFFER_EXTENDED';
+                <div
+                  key={app.id}
+                  onClick={() => setSelectedApplication(app)}
+                  className={`px-4 py-3 flex items-center justify-between gap-4 transition-colors cursor-pointer group select-none ${
+                    isSelected ? "bg-[#F1E9D8]/60" : "hover:bg-[#F8F5EC]"
+                  }`}
+                >
+                  {/* Left Section: Checkbox, Star, Avatar, Name, Branch, Role, Skills */}
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <button
+                      onClick={(e) => toggleSelectRow(app.id, e)}
+                      className="text-[#8B7B6F] hover:text-[#1C1A1A] shrink-0"
+                    >
+                      {isSelected ? <CheckSquare size={15} className="text-[#8B1A1A]" /> : <Square size={15} />}
+                    </button>
 
-                      return (
-                        <div 
-                          key={app.id} 
-                          className="bg-white border border-stone-200 rounded-xl p-3.5 shadow-card hover:border-orange-300 hover:shadow-md transition-all cursor-pointer group text-xs"
-                          onClick={() => setSelectedApplication(app)}
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-center space-x-2.5">
-                              <div className="h-8 w-8 rounded-xl bg-orange-100 border border-orange-200 flex items-center justify-center text-xs font-bold text-orange-700">
-                                {app.student?.name ? app.student.name.slice(0, 2).toUpperCase() : 'ST'}
-                              </div>
-                              <div>
-                                <p className="font-bold text-stone-900 group-hover:text-orange-600 transition-colors">{app.student?.name || 'Student'}</p>
-                                <p className="text-[11px] text-stone-400">{app.student?.branch || 'Engineering'} • {app.drive?.role || 'Role'}</p>
-                              </div>
-                            </div>
-                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${getCgpaColor(app.student?.cgpa || 7.5)}`}>
-                              {app.student?.cgpa ? app.student.cgpa.toFixed(1) : '7.5'}
-                            </span>
-                          </div>
-                          
-                          {/* Skills */}
-                          <div className="mt-2.5 flex flex-wrap gap-1">
-                            {(app.student?.skills || ['React', 'TypeScript']).slice(0, 2).map((skill: string) => (
-                              <span key={skill} className="px-2 py-0.5 bg-stone-100 text-stone-600 text-[10px] rounded-md font-medium">
-                                {skill}
-                              </span>
-                            ))}
-                          </div>
+                    <button
+                      onClick={(e) => toggleStar(app.id, e)}
+                      className="text-[#8B7B6F] hover:text-[#C8A243] shrink-0"
+                    >
+                      <Star size={14} className={isStarred ? "text-[#C8A243] fill-[#C8A243]" : ""} />
+                    </button>
 
-                          {/* Actions */}
-                          <div className="mt-3 pt-2 border-t border-stone-100 flex justify-between items-center">
-                            <span className="text-[10px] text-orange-600 font-bold">
-                              ₹{app.drive?.ctc || 10} LPA
-                            </span>
-                            
-                            {!isOfferExtended && !isOfferAccepted && (
-                              <div className="flex items-center space-x-1">
-                                <button 
-                                  disabled={processingId === app.id}
-                                  className="px-2 py-1 text-[11px] text-red-600 hover:bg-red-50 rounded-lg font-semibold transition-colors disabled:opacity-50"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleUpdateStatus(app.id, 'REJECTED');
-                                  }}
-                                  title="Reject candidate"
-                                >
-                                  Reject
-                                </button>
-                                <button 
-                                  disabled={processingId === app.id}
-                                  className="px-2.5 py-1 text-[11px] bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-bold transition-all shadow-xs flex items-center gap-1 disabled:opacity-50"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleUpdateStatus(app.id, getNextStage(app.status));
-                                  }}
-                                  title="Advance candidate"
-                                >
-                                  {processingId === app.id ? <Loader2 size={10} className="animate-spin" /> : <ChevronRight size={12} />}
-                                  Next
-                                </button>
-                              </div>
-                            )}
+                    <div className="w-8 h-8 rounded-xl bg-[#F1E9D8] border border-[#E3D8C4] flex items-center justify-center font-extrabold text-[#8B1A1A] text-xs shrink-0">
+                      {app.student?.name?.slice(0, 2).toUpperCase() || "ST"}
+                    </div>
 
-                            {isOfferExtended && (
-                              <span className="text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full flex items-center gap-1">
-                                <Award size={10} /> Offer Sent (Awaiting)
-                              </span>
-                            )}
+                    <div className="min-w-0 flex items-center gap-2 flex-wrap">
+                      <p className="font-bold text-xs text-[#1C1A1A] truncate">{app.student?.name}</p>
+                      <span className="text-[11px] text-[#5E544A] shrink-0 font-medium">
+                        — {app.student?.branch} • {app.drive?.role}
+                      </span>
+                    </div>
 
-                            {isOfferAccepted && (
-                              <span className="text-[10px] font-bold bg-green-100 text-green-800 px-2 py-0.5 rounded-full flex items-center gap-1">
-                                <CheckCircle2 size={10} /> Accepted by Student ✓
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                    
-                    {stageApplicants.length === 0 && (
-                      <div className="h-24 flex items-center justify-center border-2 border-dashed border-stone-200 rounded-xl">
-                        <p className="text-[11px] text-stone-400">No candidates in {stage.name}</p>
+                    {/* Skill Tags */}
+                    {app.student?.skills && (
+                      <div className="hidden md:flex items-center gap-1 shrink-0 ml-2">
+                        {app.student.skills.slice(0, 2).map((sk) => (
+                          <span
+                            key={sk}
+                            className="bg-[#F1E9D8] text-[#1C1A1A] border border-[#E3D8C4] px-2 py-0.5 rounded-md text-[10px] font-bold"
+                          >
+                            {sk}
+                          </span>
+                        ))}
+                        {app.student.skills.length > 2 && (
+                          <span className="text-[10px] text-[#8B7B6F] font-semibold">
+                            +{app.student.skills.length - 2}
+                          </span>
+                        )}
                       </div>
                     )}
+                  </div>
+
+                  {/* Middle Section: Match Score / CGPA & CTC */}
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-[#F1E9D8] text-[#4A7C59] border border-[#E3D8C4]">
+                      {getMatchScore(app.student?.cgpa || 8)}
+                    </span>
+
+                    <span className="text-[11px] font-bold text-[#1C1A1A] bg-[#F8F5EC] border border-[#E3D8C4] px-1.5 py-0.5 rounded">
+                      {app.student?.cgpa} CGPA
+                    </span>
+
+                    <span className="font-extrabold text-[#8B1A1A] text-xs min-w-[70px] text-right">
+                      ₹{app.drive?.ctc} LPA
+                    </span>
+                  </div>
+
+                  {/* Right Section: Action Buttons */}
+                  <div 
+                    className="flex items-center gap-1.5 shrink-0 opacity-90 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      onClick={() => setResumePreviewApp(app)}
+                      className="px-2 py-1 bg-white hover:bg-[#F1E9D8] border border-[#E3D8C4] text-[#1C1A1A] rounded-lg text-[11px] font-bold flex items-center gap-1 transition-colors shadow-2xs"
+                      title="View Resume / Profile"
+                    >
+                      <Eye size={12} className="text-[#8B7B6F]" />
+                      <span className="hidden lg:inline">Resume</span>
+                    </button>
+
+                    {app.status !== 'OFFER_ACCEPTED' && (
+                      <button
+                        disabled={isProcessing}
+                        onClick={() => handleAdvanceCandidate(app)}
+                        className="px-2.5 py-1 bg-[#8B1A1A] hover:bg-[#A63030] text-white rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all shadow-2xs disabled:opacity-50 active:scale-95"
+                        title={nextStageLabel}
+                      >
+                        {isProcessing ? (
+                          <Loader2 size={11} className="animate-spin" />
+                        ) : (
+                          <>
+                            <UserCheck size={12} />
+                            <span>{nextStageLabel}</span>
+                          </>
+                        )}
+                      </button>
+                    )}
+
+                    <button
+                      disabled={isProcessing}
+                      onClick={() => handleRejectCandidate(app)}
+                      className="p-1 text-[#8B7B6F] hover:text-[#C85555] hover:bg-[#F1E9D8] rounded-lg transition-colors"
+                      title="Reject candidate"
+                    >
+                      <Trash2 size={13} />
+                    </button>
                   </div>
                 </div>
               );
             })}
           </div>
+        ) : (
+          <div className="p-16 text-center text-xs text-[#8B7B6F] space-y-2">
+            <p className="font-bold text-[#1C1A1A]">No candidate applications found in "{activeStageTab.replace(/_/g, ' ')}".</p>
+            <p className="text-[11px]">Select another stage tab above or adjust your drive filter.</p>
+          </div>
         )}
       </div>
 
-      {/* Candidate Detail Drawer (z-[9999]) */}
+      {/* FULL CANDIDATE PROFILE SLIDE-OVER DRAWER (Layered cleanly on top of everything, z-[99999]) */}
       {selectedApplication && (
-        <div className="fixed inset-0 z-[9999] flex justify-end bg-black/60 backdrop-blur-2xs animate-fade-in">
-          <div className="w-full max-w-md bg-white h-full shadow-2xl flex flex-col border-l border-stone-200 animate-scale-in text-xs">
-            <div className="p-5 border-b border-stone-100 flex justify-between items-center bg-stone-50/70">
-              <h3 className="font-bold text-stone-900 text-sm">Candidate Dossier</h3>
-              <button 
-                onClick={() => setSelectedApplication(null)}
-                className="p-1 text-stone-400 hover:text-stone-600 rounded-lg"
-              >
-                <X size={18} />
-              </button>
-            </div>
-            
-            <div className="p-6 flex-1 overflow-y-auto space-y-5">
-              <div className="flex items-center space-x-3">
-                <div className="h-12 w-12 rounded-2xl bg-orange-100 border border-orange-200 flex items-center justify-center text-orange-700 font-bold text-base">
-                  {selectedApplication.student?.name ? selectedApplication.student.name.slice(0, 2).toUpperCase() : 'ST'}
+        <div className="fixed inset-0 z-[99999] bg-black/60 backdrop-blur-2xs flex justify-end animate-fade-in select-none">
+          <div className="w-full max-w-lg bg-white h-screen shadow-2xl p-6 sm:p-8 flex flex-col justify-between overflow-y-auto animate-slide-left text-xs border-l border-[#E3D8C4]">
+            <div>
+              {/* Drawer Top Header with clear Close X Button */}
+              <div className="flex justify-between items-start pb-5 border-b border-[#E3D8C4]">
+                <div className="flex items-center space-x-3.5">
+                  <div className="w-14 h-14 rounded-2xl bg-[#F1E9D8] border border-[#E3D8C4] flex items-center justify-center text-[#8B1A1A] font-extrabold text-base flex-shrink-0">
+                    {selectedApplication.student?.name?.slice(0, 2).toUpperCase() || 'ST'}
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-[#1C1A1A] text-lg">{selectedApplication.student?.name}</h3>
+                    <p className="text-[#5E544A] font-bold text-xs mt-0.5">
+                      {selectedApplication.student?.branch} • Roll: {selectedApplication.student?.rollNo}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h2 className="text-base font-bold text-stone-900">{selectedApplication.student?.name || 'Candidate'}</h2>
-                  <p className="text-xs text-stone-500">{selectedApplication.student?.rollNo || 'Roll No'} • {selectedApplication.student?.branch || 'Branch'}</p>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-stone-50 p-3 rounded-xl border border-stone-200">
-                  <p className="text-[10px] text-stone-500 font-bold uppercase">CGPA</p>
-                  <p className="font-bold text-sm text-stone-900 mt-0.5">{selectedApplication.student?.cgpa || 8.0} / 10</p>
-                </div>
-                <div className="bg-stone-50 p-3 rounded-xl border border-stone-200">
-                  <p className="text-[10px] text-stone-500 font-bold uppercase">Drive Role</p>
-                  <p className="font-bold text-sm text-orange-600 mt-0.5">{selectedApplication.drive?.role || 'Software Engineer'}</p>
-                </div>
+                <button 
+                  onClick={() => setSelectedApplication(null)} 
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[#F8F5EC] border border-[#E3D8C4] text-[#1C1A1A] hover:bg-[#F1E9D8] rounded-xl transition-all font-bold text-xs"
+                  title="Close Candidate Profile"
+                >
+                  <X size={16} />
+                  <span>Close</span>
+                </button>
               </div>
 
-              <div className="bg-orange-50/60 border border-orange-200 p-3.5 rounded-xl space-y-1">
-                <p className="font-bold text-stone-900 text-xs">Current Pipeline Stage</p>
-                <p className="text-xs font-semibold text-orange-700 uppercase">
-                  ● {selectedApplication.status?.replace(/_/g, ' ')}
-                </p>
+              <div className="mt-6 space-y-5">
+                {/* Target Role & CTC */}
+                <div className="p-4 bg-[#F1E9D8] rounded-2xl border border-[#E3D8C4] grid grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <span className="text-[#8B7B6F] font-bold uppercase text-[9px]">Target Position</span>
+                    <p className="font-bold text-[#1C1A1A] text-sm mt-0.5">{selectedApplication.drive?.role}</p>
+                  </div>
+                  <div>
+                    <span className="text-[#8B7B6F] font-bold uppercase text-[9px]">Offered CTC</span>
+                    <p className="font-extrabold text-[#8B1A1A] text-sm mt-0.5">₹{selectedApplication.drive?.ctc} LPA</p>
+                  </div>
+                  <div>
+                    <span className="text-[#8B7B6F] font-bold uppercase text-[9px]">Match Score</span>
+                    <p className="font-bold text-[#4A7C59] mt-0.5">{getMatchScore(selectedApplication.student?.cgpa || 8)}</p>
+                  </div>
+                  <div>
+                    <span className="text-[#8B7B6F] font-bold uppercase text-[9px]">Current Stage</span>
+                    <p className="font-bold text-[#8B1A1A] mt-0.5">{selectedApplication.status?.replace(/_/g, ' ')}</p>
+                  </div>
+                </div>
+
+                {/* Academic Transcript */}
+                <div className="bg-[#F8F5EC] rounded-2xl border border-[#E3D8C4] p-4 space-y-2 text-xs">
+                  <h4 className="font-bold text-[#1C1A1A] mb-2 flex items-center gap-1.5">
+                    <GraduationCap size={15} className="text-[#8B1A1A]" />
+                    Academic Transcript
+                  </h4>
+                  <div className="grid grid-cols-2 gap-2 text-[11px] text-[#5E544A]">
+                    <p><strong>Current CGPA:</strong> {selectedApplication.student?.cgpa} / 10</p>
+                    <p><strong>Active Backlogs:</strong> {selectedApplication.student?.backlogs ?? 0}</p>
+                    <p><strong>Class 10th:</strong> {selectedApplication.student?.class10 ?? 91}%</p>
+                    <p><strong>Class 12th:</strong> {selectedApplication.student?.class12 ?? 88.5}%</p>
+                  </div>
+                </div>
+
+                {/* Verified Skills */}
+                <div>
+                  <h4 className="font-bold text-[#1C1A1A] mb-2">Verified Technical Skills</h4>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(selectedApplication.student?.skills || ['React.js', 'Node.js', 'Python', 'PyTorch', 'Docker', 'PostgreSQL']).map(s => (
+                      <span key={s} className="px-3 py-1 bg-[#F1E9D8] border border-[#E3D8C4] rounded-xl font-bold text-xs text-[#1C1A1A] shadow-2xs">
+                        {s}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Stage History */}
+                {selectedApplication.stageHistory && selectedApplication.stageHistory.length > 0 && (
+                  <div>
+                    <h4 className="font-bold text-[#1C1A1A] mb-2">Application Timeline</h4>
+                    <div className="space-y-2 border-l-2 border-[#8B1A1A] pl-3 ml-1">
+                      {selectedApplication.stageHistory.map((st, idx) => (
+                        <div key={idx} className="relative text-[11px]">
+                          <div className="absolute -left-[19px] top-1 w-2.5 h-2.5 rounded-full bg-[#8B1A1A] ring-2 ring-white" />
+                          <p className="font-bold text-[#1C1A1A]">{st.stage}</p>
+                          <p className="text-[#8B7B6F] text-[10px]">
+                            {new Date(st.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
-            
-            <div className="p-5 border-t border-stone-200 bg-stone-50 flex gap-3">
-              <button 
-                disabled={processingId === selectedApplication.id}
-                onClick={() => handleUpdateStatus(selectedApplication.id, 'REJECTED')}
-                className="flex-1 px-4 py-2.5 bg-white border border-red-200 text-red-600 rounded-xl font-semibold hover:bg-red-50 transition-colors disabled:opacity-50"
+
+            {/* Actions & Bottom Close Button */}
+            <div className="pt-6 border-t border-[#E3D8C4] space-y-2">
+              <div className="flex items-center gap-3">
+                <button
+                  disabled={processingId === selectedApplication.id}
+                  onClick={() => handleRejectCandidate(selectedApplication)}
+                  className="flex-1 py-3 border border-[#C85555] text-[#C85555] hover:bg-[#F1E9D8] rounded-xl font-bold transition-colors text-xs"
+                >
+                  Reject Candidate
+                </button>
+                {selectedApplication.status !== 'OFFER_ACCEPTED' && (
+                  <button
+                    disabled={processingId === selectedApplication.id}
+                    onClick={() => handleAdvanceCandidate(selectedApplication)}
+                    className="flex-1 py-3 bg-[#8B1A1A] hover:bg-[#A63030] text-white rounded-xl font-bold transition-all shadow-xs text-xs flex items-center justify-center gap-1.5"
+                  >
+                    {processingId === selectedApplication.id ? (
+                      <Loader2 size={14} className="animate-spin" />
+                    ) : (
+                      <>
+                        <UserCheck size={14} />
+                        <span>Advance Stage</span>
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+
+              <button
+                onClick={() => setSelectedApplication(null)}
+                className="w-full py-2.5 bg-[#F8F5EC] hover:bg-[#F1E9D8] border border-[#E3D8C4] text-[#5E544A] hover:text-[#1C1A1A] rounded-xl text-xs font-bold transition-colors"
               >
-                Reject
-              </button>
-              <button 
-                disabled={
-                  processingId === selectedApplication.id || 
-                  selectedApplication.status === 'OFFER_EXTENDED' || 
-                  selectedApplication.status === 'OFFER_ACCEPTED'
-                }
-                onClick={() => handleUpdateStatus(selectedApplication.id, getNextStage(selectedApplication.status))}
-                className="flex-1 px-4 py-2.5 bg-orange-500 text-white rounded-xl font-bold hover:bg-orange-600 transition-all shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-50"
-              >
-                {processingId === selectedApplication.id ? <Loader2 size={14} className="animate-spin" /> : <UserCheck size={14} />}
-                {selectedApplication.status === 'OFFER_EXTENDED' || selectedApplication.status === 'OFFER_ACCEPTED' ? 'Offer Extended' : 'Advance to Next Stage'}
+                Back to Applicants Pipeline
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Centered Modal Dialog for Errors / Info (Requirement 5, z-[9999]) */}
+      {/* RESUME PREVIEW MODAL */}
+      {resumePreviewApp && (
+        <div className="fixed inset-0 z-[99999] bg-black/60 backdrop-blur-2xs flex items-center justify-center p-4 animate-fade-in select-none">
+          <div className="bg-white rounded-2xl border border-[#E3D8C4] shadow-2xl max-w-2xl w-full p-6 space-y-5 animate-scale-in text-xs">
+            <div className="flex items-center justify-between border-b border-[#E3D8C4] pb-3">
+              <div className="flex items-center gap-2">
+                <FileText className="text-[#8B1A1A]" size={18} />
+                <h3 className="font-bold text-sm text-[#1C1A1A]">Official Digital Resume — {resumePreviewApp.student?.name}</h3>
+              </div>
+              <button onClick={() => setResumePreviewApp(null)} className="text-[#8B7B6F] hover:text-[#1C1A1A]">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-4 bg-[#F8F5EC] p-5 rounded-xl border border-[#E3D8C4]">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h4 className="font-bold text-base text-[#1C1A1A]">{resumePreviewApp.student?.name}</h4>
+                  <p className="text-[#5E544A]">{resumePreviewApp.student?.branch} · Class of {resumePreviewApp.student?.graduationYear || 2027}</p>
+                </div>
+                <span className="bg-[#F1E9D8] text-[#4A7C59] border border-[#E3D8C4] px-2.5 py-1 rounded-full font-bold text-[10px]">
+                  Verified by TPO Office ✓
+                </span>
+              </div>
+
+              <div className="border-t border-[#E3D8C4] pt-3 grid grid-cols-2 gap-3 text-[11px]">
+                <p><strong>Cumulative CGPA:</strong> {resumePreviewApp.student?.cgpa} / 10</p>
+                <p><strong>Active Backlogs:</strong> {resumePreviewApp.student?.backlogs ?? 0}</p>
+                <p><strong>Senior Secondary (12th):</strong> {resumePreviewApp.student?.class12 ?? 88.5}%</p>
+                <p><strong>Secondary (10th):</strong> {resumePreviewApp.student?.class10 ?? 91}%</p>
+              </div>
+
+              <div className="border-t border-[#E3D8C4] pt-3">
+                <p className="font-bold text-[#1C1A1A] mb-1">Key Technical Proficiencies</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {(resumePreviewApp.student?.skills || ['React.js', 'Node.js', 'Python', 'SQL']).map(s => (
+                    <span key={s} className="bg-white border border-[#E3D8C4] px-2 py-0.5 rounded text-[10px] font-bold text-[#1C1A1A]">
+                      {s}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setResumePreviewApp(null)}
+                className="px-4 py-2 bg-white border border-[#E3D8C4] text-[#1C1A1A] hover:bg-[#F8F5EC] rounded-xl font-bold"
+              >
+                Close Preview
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* POPUP ALERT & CONFIRMATION DIALOG */}
       {modalDialog.isOpen && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-2xs p-4 animate-fade-in select-none">
-          <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border border-stone-200 p-6 space-y-4 text-center animate-scale-in">
+        <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/60 backdrop-blur-2xs p-4 animate-fade-in select-none">
+          <div className="relative w-full max-w-sm sm:max-w-md bg-white rounded-2xl shadow-2xl border border-[#E3D8C4] p-6 space-y-4 text-center animate-scale-in">
             <div className="flex justify-center">
-              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
-                modalDialog.type === 'error' ? 'bg-red-100 text-red-600' : 'bg-orange-100 text-orange-600'
+              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${
+                modalDialog.type === 'error' || modalDialog.type === 'confirm'
+                  ? 'bg-[#F1E9D8] text-[#8B1A1A] border border-[#E3D8C4]' 
+                  : 'bg-[#F1E9D8] text-[#4A7C59] border border-[#E3D8C4]'
               }`}>
-                {modalDialog.type === 'error' ? <AlertCircle size={24} /> : <CheckCircle2 size={24} />}
+                {modalDialog.type === 'error' || modalDialog.type === 'confirm' ? (
+                  <AlertCircle size={28} className="text-[#8B1A1A]" />
+                ) : (
+                  <CheckCircle2 size={28} className="text-[#4A7C59]" />
+                )}
               </div>
             </div>
 
             <div>
-              <h3 className="font-bold text-stone-900 text-base">{modalDialog.title}</h3>
-              <p className="text-xs text-stone-500 mt-1.5 leading-relaxed">{modalDialog.message}</p>
+              <h3 className="font-bold text-[#1C1A1A] text-base">{modalDialog.title}</h3>
+              <p className="text-xs text-[#5E544A] mt-1.5 leading-relaxed font-medium">{modalDialog.message}</p>
             </div>
 
-            <div className="pt-2 flex justify-center">
-              <button
-                onClick={() => setModalDialog({ ...modalDialog, isOpen: false })}
-                className="px-6 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold transition-all shadow-sm"
-              >
-                Got it
-              </button>
-            </div>
+            {modalDialog.type === 'confirm' ? (
+              <div className="pt-2 flex items-center justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setModalDialog(prev => ({ ...prev, isOpen: false }))}
+                  className="flex-1 py-2.5 px-4 bg-white border border-[#E3D8C4] text-[#5E544A] hover:bg-[#F8F5EC] rounded-xl text-xs font-bold transition-all shadow-xs"
+                >
+                  {modalDialog.cancelLabel || 'Cancel'}
+                </button>
+                <button
+                  type="button"
+                  onClick={modalDialog.onConfirm}
+                  className="flex-1 py-2.5 px-4 bg-[#8B1A1A] hover:bg-[#A63030] text-white rounded-xl text-xs font-bold transition-all shadow-xs active:scale-[0.98]"
+                >
+                  {modalDialog.confirmLabel || 'Confirm'}
+                </button>
+              </div>
+            ) : (
+              <div className="pt-2 flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => setModalDialog({ ...modalDialog, isOpen: false })}
+                  className="px-6 py-2.5 bg-[#8B1A1A] hover:bg-[#A63030] text-white rounded-xl text-xs font-bold transition-all shadow-xs"
+                >
+                  Got it
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
     </div>
+  );
+}
+
+export default function CompanyApplicantsPage() {
+  return (
+    <Suspense fallback={
+      <div className="p-12 text-center text-xs text-[#8B7B6F] flex items-center justify-center gap-2">
+        <Loader2 size={16} className="animate-spin text-[#8B1A1A]" /> Loading candidate pipeline...
+      </div>
+    }>
+      <CompanyApplicantsContent />
+    </Suspense>
   );
 }

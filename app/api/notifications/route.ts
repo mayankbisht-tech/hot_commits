@@ -151,7 +151,16 @@ export async function GET(req: NextRequest) {
         }
       }
     } else if (role === 'STUDENT') {
-      const studentId = session.user.profileId || session.user.id;
+      const studentRec = await prisma.student.findFirst({
+        where: {
+          OR: [
+            { id: session.user.profileId || '' },
+            { userId: session.user.userId || session.user.id || '' },
+            { user: { email: session.user.email?.toLowerCase().trim() || '' } }
+          ]
+        }
+      });
+      const studentId = studentRec?.id || session.user.profileId || session.user.id;
       if (studentId) {
         // 1. Recruiter Reminders sent to student
         const studentReminders = (global.globalReminders || []).filter(
@@ -210,6 +219,16 @@ export async function GET(req: NextRequest) {
               time: 'Updated',
               unread: false,
               type: 'candidate',
+              link: '/student/applications'
+            });
+          } else if (app.status === 'REJECTED') {
+            notifications.push({
+              id: `student-reject-${app.id}`,
+              title: `Application Update: ${app.drive.company.name}`,
+              desc: `Thank you for applying for the ${app.drive.role} position at ${app.drive.company.name}. After careful review, we regret to inform you that your application has not been shortlisted to proceed further at this stage. We appreciate the time and effort you invested and encourage you to apply for future opportunities through the portal.`,
+              time: 'Closed',
+              unread: true,
+              type: 'rejection',
               link: '/student/applications'
             });
           }

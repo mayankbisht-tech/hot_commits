@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { GraduationCap, Building2, User, ArrowRight, Loader2, AlertCircle, Key, Mail, CheckCircle2 } from 'lucide-react';
+import Link from 'next/link';
+import { GraduationCap, Building2, User, ArrowRight, Loader2, AlertCircle, Key, Mail, CheckCircle2, UserPlus } from 'lucide-react';
 import { apiLogin } from '@/lib/api-client';
 
 const roles = [
@@ -11,9 +12,9 @@ const roles = [
     subtitle: 'Training & Placement Office',
     description: 'Manage drives, eligibility rules, student applications and NIRF reports.',
     icon: GraduationCap,
-    accent: '#F97316',
-    bg: '#FFF7ED',
-    border: '#FED7AA',
+    accent: '#8B1A1A',
+    bg: '#F1E9D8',
+    border: '#E3D8C4',
     email: 'admin@ggsipu.ac.in',
     password: 'admin123',
     redirect: '/tpo',
@@ -24,9 +25,9 @@ const roles = [
     subtitle: 'Recruiting Company',
     description: 'Post placement drives, review applicants, extend offers.',
     icon: Building2,
-    accent: '#16A34A',
-    bg: '#F0FDF4',
-    border: '#86EFAC',
+    accent: '#4A7C59',
+    bg: '#F1E9D8',
+    border: '#E3D8C4',
     email: 'hr@techcorp.io',
     password: 'company123',
     redirect: '/company',
@@ -37,9 +38,9 @@ const roles = [
     subtitle: 'Final Year Student (Rohan Mehta)',
     description: 'Browse eligible drives, apply, track application stages and training.',
     icon: User,
-    accent: '#F97316',
-    bg: '#FFFBEB',
-    border: '#FDE68A',
+    accent: '#C8A243',
+    bg: '#F1E9D8',
+    border: '#E3D8C4',
     email: 'rohan@ipu.ac.in',
     password: 'student123',
     redirect: '/student',
@@ -58,7 +59,6 @@ export default function LoginPage() {
     setLoadingRole(role.key);
     try {
       await apiLogin(role.email, role.password);
-      // Hard navigation to guarantee cookie is picked up by middleware and Next.js shell
       window.location.href = role.redirect;
     } catch (e) {
       setError((e as Error).message || 'Login failed');
@@ -81,22 +81,31 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FFFAF6] flex flex-col items-center justify-center px-4 py-12">
+    <div className="min-h-screen bg-[#F8F5EC] flex flex-col items-center justify-center px-4 py-12 select-none text-[#1C1A1A]">
       {/* Header */}
       <div className="text-center mb-8 animate-fade-in">
-        <div className="inline-flex items-center justify-center w-16 h-16 bg-orange-100 rounded-2xl mb-3 border border-orange-200 shadow-sm">
-          <GraduationCap className="w-8 h-8 text-orange-500" />
+        <div className="inline-flex items-center justify-center w-16 h-16 bg-[#F1E9D8] rounded-2xl mb-3 border border-[#E3D8C4] shadow-xs">
+          <GraduationCap className="w-8 h-8 text-[#8B1A1A]" />
         </div>
-        <h1 className="text-3xl font-bold text-stone-900">GGSIPU Placement Cell</h1>
-        <p className="text-stone-500 mt-1 text-sm">Training & Placement Portal · Session 2026–27</p>
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 mt-2.5 bg-orange-50 text-orange-700 border border-orange-200 rounded-full text-xs font-medium">
-          <CheckCircle2 size={12} className="text-orange-500" /> Placement Session 2026-27
-        </span>
+        <h1 className="text-3xl font-bold text-[#1C1A1A]">GGSIPU Placement Cell</h1>
+        <p className="text-[#5E544A] mt-1 text-sm font-medium">Training & Placement Portal · Session 2026–27</p>
+        <div className="flex items-center justify-center gap-3 mt-3">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#F1E9D8] text-[#8B1A1A] border border-[#E3D8C4] rounded-full text-xs font-bold">
+            <CheckCircle2 size={12} className="text-[#8B1A1A]" /> Placement Session 2026-27
+          </span>
+          <Link
+            href="/signup"
+            className="inline-flex items-center gap-1.5 px-3.5 py-1 bg-white text-[#8B1A1A] border border-[#8B1A1A] hover:bg-[#8B1A1A] hover:text-white rounded-full text-xs font-bold transition-all shadow-xs"
+          >
+            <UserPlus size={12} />
+            <span>Create New Account</span>
+          </Link>
+        </div>
       </div>
 
       {/* Role Cards */}
       <div className="w-full max-w-4xl">
-        <p className="text-center text-stone-600 text-sm mb-6 font-medium">
+        <p className="text-center text-[#5E544A] text-sm mb-6 font-semibold">
           Click any role below for instant 1-click access:
         </p>
 
@@ -119,33 +128,33 @@ export default function LoginPage() {
                     >
                       <Icon className="w-6 h-6" style={{ color: role.accent }} />
                     </div>
-                    <span className="text-[11px] font-semibold uppercase px-2 py-0.5 rounded bg-stone-100 text-stone-600">
+                    <span className="text-[11px] font-bold uppercase px-2 py-0.5 rounded bg-[#F1E9D8] text-[#5E544A]">
                       {role.key}
                     </span>
                   </div>
 
-                  <h2 className="font-bold text-stone-900 text-lg">{role.label}</h2>
-                  <p className="text-xs font-medium mt-0.5" style={{ color: role.accent }}>{role.subtitle}</p>
-                  <p className="text-stone-500 text-xs mt-2.5 leading-relaxed">{role.description}</p>
+                  <h2 className="font-bold text-[#1C1A1A] text-lg">{role.label}</h2>
+                  <p className="text-xs font-bold mt-0.5" style={{ color: role.accent }}>{role.subtitle}</p>
+                  <p className="text-[#5E544A] text-xs mt-2.5 leading-relaxed font-medium">{role.description}</p>
                 </div>
 
                 {/* Credentials box */}
-                <div className="mt-4 pt-3 border-t border-stone-100">
-                  <div className="bg-stone-50 rounded-lg p-2.5 text-xs text-stone-600 space-y-1 mb-3">
+                <div className="mt-4 pt-3 border-t border-[#E3D8C4]">
+                  <div className="bg-[#F1E9D8] rounded-xl p-2.5 text-xs text-[#5E544A] space-y-1 mb-3 border border-[#E3D8C4]">
                     <div className="flex items-center gap-1.5 truncate">
-                      <Mail size={12} className="text-stone-400 flex-shrink-0" />
-                      <span className="font-mono text-[11px] text-stone-700 truncate">{role.email}</span>
+                      <Mail size={12} className="text-[#8B7B6F] flex-shrink-0" />
+                      <span className="font-mono text-[11px] text-[#1C1A1A] truncate">{role.email}</span>
                     </div>
                     <div className="flex items-center gap-1.5">
-                      <Key size={12} className="text-stone-400 flex-shrink-0" />
-                      <span className="font-mono text-[11px] text-stone-700 font-semibold">{role.password}</span>
+                      <Key size={12} className="text-[#8B7B6F] flex-shrink-0" />
+                      <span className="font-mono text-[11px] text-[#1C1A1A] font-bold">{role.password}</span>
                     </div>
                   </div>
 
                   <button
                     disabled={loadingRole !== null}
                     onClick={() => handleDemoLogin(role)}
-                    className="w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all shadow-sm hover:opacity-90 active:scale-[0.98] disabled:opacity-50"
+                    className="w-full py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-xs hover:opacity-90 active:scale-[0.98] disabled:opacity-50"
                     style={{ background: role.accent, color: '#fff' }}
                   >
                     {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight size={14} />}
@@ -159,78 +168,74 @@ export default function LoginPage() {
 
         {/* Error notification */}
         {error && (
-          <div className="mt-5 flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm animate-fade-in max-w-md mx-auto">
-            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          <div className="mt-5 p-3.5 bg-[#F1E9D8] border border-[#C85555] rounded-xl flex items-center gap-2 text-xs font-bold text-[#C85555]">
+            <AlertCircle size={15} />
             <span>{error}</span>
           </div>
         )}
 
-        {/* Manual Login Section */}
-        <div className="mt-8 text-center">
+        {/* Bottom Actions: Create Account & Manual Login */}
+        <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
+          <Link
+            href="/signup"
+            className="flex items-center gap-2 px-5 py-2.5 bg-white border border-[#E3D8C4] hover:border-[#8B1A1A] text-[#1C1A1A] hover:text-[#8B1A1A] rounded-xl text-xs font-bold transition-all shadow-xs"
+          >
+            <UserPlus size={14} className="text-[#8B1A1A]" />
+            <span>New user? Create a new account</span>
+          </Link>
+
           <button
             onClick={() => setShowManual(!showManual)}
-            className="text-xs font-medium text-stone-500 hover:text-orange-600 transition-colors inline-flex items-center gap-1 bg-white px-3 py-1.5 rounded-full border border-stone-200 shadow-xs"
+            className="text-xs font-bold text-[#8B1A1A] hover:underline"
           >
-            {showManual ? '↑ Hide custom credentials form' : '↓ Or enter custom credentials manually'}
+            {showManual ? '— Hide Manual Form —' : 'Or login with custom credentials →'}
           </button>
         </div>
 
+        {/* Manual Login Form */}
         {showManual && (
-          <form onSubmit={handleManualLogin} className="mt-4 bg-white border border-stone-200 rounded-2xl p-6 shadow-card animate-fade-in max-w-sm mx-auto">
-            <h3 className="font-semibold text-stone-900 mb-3 text-sm">Custom Login</h3>
-            <div className="space-y-3">
+          <div className="mt-4 bg-white border border-[#E3D8C4] rounded-2xl p-6 shadow-card max-w-md mx-auto animate-scale-in">
+            <h3 className="font-bold text-[#1C1A1A] text-sm mb-4">Manual Account Login</h3>
+            <form onSubmit={handleManualLogin} className="space-y-3">
               <div>
-                <label className="text-xs font-medium text-stone-600 block mb-1">Email</label>
+                <label className="block text-xs font-bold text-[#5E544A] mb-1">Email</label>
                 <input
                   type="email"
                   value={email}
-                  onChange={e => setEmail(e.target.value)}
+                  onChange={(e) => setEmail(e.target.value)}
                   placeholder="admin@ggsipu.ac.in"
-                  className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400"
+                  className="w-full px-3 py-2 bg-[#F8F5EC] border border-[#E3D8C4] rounded-xl text-xs text-[#1C1A1A] focus:outline-none focus:ring-1 focus:ring-[#8B1A1A]"
                   required
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-stone-600 block mb-1">Password</label>
+                <label className="block text-xs font-bold text-[#5E544A] mb-1">Password</label>
                 <input
                   type="password"
                   value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  placeholder="admin123"
-                  className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400"
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full px-3 py-2 bg-[#F8F5EC] border border-[#E3D8C4] rounded-xl text-xs text-[#1C1A1A] focus:outline-none focus:ring-1 focus:ring-[#8B1A1A]"
                   required
                 />
               </div>
               <button
                 type="submit"
                 disabled={loadingRole !== null}
-                className="w-full py-2.5 bg-orange-500 text-white rounded-xl text-sm font-semibold hover:bg-orange-600 transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+                className="w-full py-2.5 bg-[#8B1A1A] hover:bg-[#A63030] text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-xs disabled:opacity-50"
               >
-                {loadingRole === 'manual' && <Loader2 className="w-4 h-4 animate-spin" />}
+                {loadingRole === 'manual' ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                 Sign In
               </button>
-            </div>
-          </form>
-        )}
-
-        {/* Sign Up Banner */}
-        <div className="mt-8 bg-orange-50/70 border border-orange-200/80 rounded-2xl p-4 text-center flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xs">
-          <div className="text-left">
-            <p className="text-xs font-bold text-stone-800">New to GGSIPU Placement Cell?</p>
-            <p className="text-[11px] text-stone-500">Create a student, company, or coordinator account to get started.</p>
+            </form>
           </div>
-          <a
-            href="/signup"
-            className="px-4 py-2 bg-white text-orange-600 border border-orange-300 hover:bg-orange-500 hover:text-white rounded-xl text-xs font-semibold transition-all shadow-xs flex items-center gap-1 flex-shrink-0"
-          >
-            Create New Account <ArrowRight size={12} />
-          </a>
-        </div>
+        )}
       </div>
 
-      <p className="mt-10 text-xs text-stone-400 text-center">
-        GGSIPU — Guru Gobind Singh Indraprastha University, New Delhi
-      </p>
+      {/* Footer */}
+      <div className="mt-12 text-center text-xs text-[#8B7B6F]">
+        <p>Guru Gobind Singh Indraprastha University · Placement Portal</p>
+      </div>
     </div>
   );
 }

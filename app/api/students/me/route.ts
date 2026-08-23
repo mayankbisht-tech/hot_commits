@@ -2,37 +2,25 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
 
-export async function GET(req: NextRequest, context: { params: any }) {
+export async function GET(req: NextRequest) {
   try {
     const user = await getCurrentUser();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-    const rawParams = await context.params;
-    let id = rawParams?.id;
-    if (id === 'me') {
-      id = user.profileId || user.userId || '';
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    let student = await prisma.student.findFirst({
-      where: {
-        OR: [
-          { id: id },
-          { userId: id }
-        ]
-      },
-      include: {
-        user: { select: { email: true } },
-        offers: true,
-        applications: {
-          include: {
-            drive: { select: { role: true, ctc: true, company: { select: { name: true } } } }
-          }
-        }
-      }
-    });
+    let student = null;
 
-    if (!student) {
+    if (user.role === 'STUDENT') {
       student = await prisma.student.findFirst({
+        where: {
+          OR: [
+            { id: user.profileId || '' },
+            { userId: user.userId || '' },
+            { userId: user.id || '' },
+            { user: { email: user.email?.toLowerCase().trim() || '' } }
+          ]
+        },
         include: {
           user: { select: { email: true } },
           offers: true,
@@ -45,49 +33,84 @@ export async function GET(req: NextRequest, context: { params: any }) {
       });
     }
 
-    if (!student) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    // Direct fallback by user email if not resolved yet
+    if (!student && user.email) {
+      const dbUser = await prisma.user.findUnique({
+        where: { email: user.email.toLowerCase().trim() },
+        include: {
+          student: {
+            include: {
+              user: { select: { email: true } },
+              offers: true,
+              applications: {
+                include: {
+                  drive: { select: { role: true, ctc: true, company: { select: { name: true } } } }
+                }
+              }
+            }
+          }
+        }
+      });
+      if (dbUser?.student) {
+        student = dbUser.student;
+      }
+    }
+
+    if (!student) {
+      return NextResponse.json({ error: 'Student profile not found for this user' }, { status: 404 });
+    }
 
     const formattedStudent = {
       ...student,
-      email: student.user?.email || '',
+      email: student.user?.email || user.email || '',
       skills: student.skillsJson ? JSON.parse(student.skillsJson) : []
     };
 
     return NextResponse.json({ student: formattedStudent });
   } catch (error: any) {
+    console.error('Error fetching student me:', error);
     return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
   }
 }
 
-export async function PUT(req: NextRequest, context: { params: any }) {
+export async function PUT(req: NextRequest) {
   try {
     const user = await getCurrentUser();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-    const rawParams = await context.params;
-    let id = rawParams?.id;
-    if (id === 'me') {
-      id = user.profileId || user.userId || '';
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const body = await req.json();
+
+    // Find student strictly belonging to the logged-in user
     let student = await prisma.student.findFirst({
       where: {
         OR: [
-          { id: id },
-          { userId: id }
+          { id: user.profileId || '' },
+          { userId: user.userId || '' },
+          { userId: user.id || '' },
+          { user: { email: user.email?.toLowerCase().trim() || '' } }
         ]
       }
     });
 
-    if (!student) {
-      student = await prisma.student.findFirst();
+    if (!student && user.email) {
+      const dbUser = await prisma.user.findUnique({
+        where: { email: user.email.toLowerCase().trim() },
+        include: { student: true }
+      });
+      if (dbUser?.student) {
+        student = dbUser.student;
+      }
     }
 
-    if (!student) return NextResponse.json({ error: 'Student not found' }, { status: 404 });
+    if (!student) {
+      return NextResponse.json({ error: 'Student profile not found' }, { status: 404 });
+    }
 
-    const body = await req.json();
     const updateData: any = {};
 
+    // Validate phone number if provided (must be 10 digits)
     if (body.phone !== undefined) {
       const rawDigits = String(body.phone).replace(/[^0-9]/g, '');
       if (rawDigits.length !== 10) {
@@ -96,6 +119,7 @@ export async function PUT(req: NextRequest, context: { params: any }) {
       updateData.phone = rawDigits;
     }
 
+    // Validate email if provided
     if (body.email !== undefined) {
       const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
       const emailStr = String(body.email).trim().toLowerCase();
@@ -107,7 +131,9 @@ export async function PUT(req: NextRequest, context: { params: any }) {
           where: { id: student.userId },
           data: { email: emailStr }
         });
-      } catch {}
+      } catch (err: any) {
+        console.warn('Could not update user email record:', err.message);
+      }
     }
 
     if (body.cgpa !== undefined) {
@@ -121,9 +147,6 @@ export async function PUT(req: NextRequest, context: { params: any }) {
     if (body.skills !== undefined) {
       updateData.skillsJson = JSON.stringify(body.skills);
     }
-    if (body.resumeVerified !== undefined) updateData.resumeVerified = body.resumeVerified;
-    if (body.placementStatus !== undefined) updateData.placementStatus = body.placementStatus;
-    if (body.dreamEligible !== undefined) updateData.dreamEligible = body.dreamEligible;
 
     const updatedStudent = await prisma.student.update({
       where: { id: student.id },
@@ -147,7 +170,7 @@ export async function PUT(req: NextRequest, context: { params: any }) {
       student: formattedStudent 
     });
   } catch (error: any) {
-    console.error('Error updating student profile:', error);
+    console.error('Error updating student profile me:', error);
     return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
   }
 }

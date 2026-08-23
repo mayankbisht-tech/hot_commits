@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import prisma, { withRetry } from '@/lib/prisma';
 import { auth } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
@@ -10,9 +10,23 @@ export async function GET(req: NextRequest) {
     }
 
     const { user } = session;
-    const studentId = user.profileId || user.userId || user.id;
+    
+    // Resolve student record ID
+    let studentId = user.profileId;
+    if (!studentId && user.role === 'STUDENT') {
+      const studentRec = await withRetry(() => prisma.student.findFirst({
+        where: {
+          OR: [
+            { userId: user.id },
+            { userId: user.userId || '' },
+            { user: { email: user.email?.toLowerCase().trim() || '' } }
+          ]
+        }
+      }));
+      studentId = studentRec?.id || user.id;
+    }
 
-    const programs = await prisma.trainingProgram.findMany({
+    const programs = await withRetry(() => prisma.trainingProgram.findMany({
       include: {
         _count: {
           select: { enrollments: true },
@@ -24,7 +38,7 @@ export async function GET(req: NextRequest) {
       orderBy: {
         date: 'asc',
       },
-    });
+    }));
 
     const parsedPrograms = programs.map((program) => {
       let tags = [];
@@ -66,7 +80,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { title, type, date, time, venue, mode, capacity, facilitator, description, tags = [] } = body;
 
-    const program = await prisma.trainingProgram.create({
+    const program = await withRetry(() => prisma.trainingProgram.create({
       data: {
         title,
         type,
@@ -79,7 +93,7 @@ export async function POST(req: NextRequest) {
         description,
         tagsJson: JSON.stringify(tags),
       },
-    });
+    }));
 
     return NextResponse.json(program, { status: 201 });
   } catch (error: any) {

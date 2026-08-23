@@ -44,15 +44,34 @@ export async function POST(req: Request) {
 
     let profileId: string | undefined = undefined;
     let name = user.email;
-    if (user.role === 'STUDENT' && user.student) {
-      profileId = user.student.id;
-      name = user.student.name;
-    } else if (user.role === 'COMPANY' && user.company) {
-      profileId = user.company.id;
-      name = user.company.name;
-    } else if (user.role === 'TPO' && user.tpo) {
-      profileId = user.tpo.id;
-      name = user.tpo.name;
+
+    if (user.role === 'STUDENT') {
+      let student = user.student;
+      if (!student) {
+        student = await prisma.student.findUnique({ where: { userId: user.id } });
+      }
+      if (student) {
+        profileId = student.id;
+        name = student.name;
+      }
+    } else if (user.role === 'COMPANY') {
+      let company = user.company;
+      if (!company) {
+        company = await prisma.company.findUnique({ where: { userId: user.id } });
+      }
+      if (company) {
+        profileId = company.id;
+        name = company.name;
+      }
+    } else if (user.role === 'TPO') {
+      let tpo = user.tpo;
+      if (!tpo) {
+        tpo = await prisma.tPOAdmin.findUnique({ where: { userId: user.id } });
+      }
+      if (tpo) {
+        profileId = tpo.id;
+        name = tpo.name;
+      }
     }
 
     const payload: JWTPayload = {

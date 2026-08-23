@@ -36,7 +36,7 @@ export default function TrainingAnalyticsPage() {
   // Add Training Form state
   const [title, setTitle] = useState('');
   const [type, setType] = useState('TECHNICAL');
-  const [date, setDate] = useState('2024-11-10');
+  const [date, setDate] = useState('2026-09-15');
   const [time, setTime] = useState('10:00 AM');
   const [venue, setVenue] = useState('Seminar Hall A');
   const [mode, setMode] = useState('OFFLINE');
@@ -45,7 +45,7 @@ export default function TrainingAnalyticsPage() {
   const [description, setDescription] = useState('');
   const [tagsInput, setTagsInput] = useState('Java, Spring, System Design');
 
-  const programs: TrainingItem[] = Array.isArray(programsData) 
+  const rawPrograms: TrainingItem[] = Array.isArray(programsData) 
     ? programsData 
     : programsData?.programs || fallbackPrograms.map(p => ({
         id: p.id,
@@ -61,11 +61,17 @@ export default function TrainingAnalyticsPage() {
         _count: { enrollments: p.registeredCount }
       }));
 
+  const programs = [...rawPrograms].sort((a, b) => {
+    const timeA = new Date(a.date).getTime();
+    const timeB = new Date(b.date).getTime();
+    return timeA - timeB;
+  });
+
   const chartData = [
-    { name: 'Technical', participants: 450, color: '#F97316' },
-    { name: 'Aptitude', participants: 620, color: '#F59E0B' },
-    { name: 'Soft Skills', participants: 380, color: '#10B981' },
-    { name: 'Certification', participants: 210, color: '#8B5CF6' },
+    { name: 'Technical', participants: 450, color: '#8B1A1A' },
+    { name: 'Aptitude', participants: 620, color: '#C8A243' },
+    { name: 'Soft Skills', participants: 380, color: '#4A7C59' },
+    { name: 'Certification', participants: 210, color: '#8B1A1A' },
   ];
 
   const handleCreateProgram = async (e: React.FormEvent) => {
@@ -89,7 +95,6 @@ export default function TrainingAnalyticsPage() {
       setSuccessMsg('Training Program added and opened for student registration!');
       setIsAddModalOpen(false);
       mutate('/api/training');
-      // Reset
       setTitle('');
       setFacilitator('');
       setDescription('');
@@ -103,66 +108,58 @@ export default function TrainingAnalyticsPage() {
   const handleExportCSV = () => {
     const rows = programs.map(p => ({
       Title: p.title,
-      Type: p.type,
-      Date: p.date,
+      Category: p.type,
+      Date: p.date.split('T')[0],
       Time: p.time,
       Venue: p.venue,
       Mode: p.mode,
       Capacity: p.capacity,
-      Registered: p._count?.enrollments || p.enrollments?.length || 0,
-      Facilitator: p.facilitator
+      Registered_Attendees: p._count?.enrollments || p.enrollments?.length || 0,
+      Facilitator: p.facilitator,
     }));
-    downloadCSV('training_programs_report.csv', rows);
+
+    downloadCSV('GGSIPU_Training_Programs_Report.csv', rows);
   };
 
-  const getIconForType = (t: string) => {
-    const typeUpper = t?.toUpperCase();
-    switch (typeUpper) {
-      case 'TECHNICAL': return <BookOpen size={18} className="text-orange-600" />;
-      case 'APTITUDE': return <Brain size={18} className="text-amber-600" />;
-      case 'SOFT_SKILLS': return <MessageSquare size={18} className="text-green-600" />;
-      case 'CERTIFICATION': return <Award size={18} className="text-purple-600" />;
-      default: return <BookOpen size={18} className="text-orange-600" />;
-    }
-  };
-
-  const getBadgeColor = (t: string) => {
-    const typeUpper = t?.toUpperCase();
-    switch (typeUpper) {
-      case 'TECHNICAL': return 'bg-orange-100 text-orange-700 border-orange-200';
-      case 'APTITUDE': return 'bg-amber-100 text-amber-700 border-amber-200';
-      case 'SOFT_SKILLS': return 'bg-green-100 text-green-700 border-green-200';
-      case 'CERTIFICATION': return 'bg-purple-100 text-purple-700 border-purple-200';
-      default: return 'bg-stone-100 text-stone-700 border-stone-200';
+  const getTypeIcon = (t: string) => {
+    switch (t?.toUpperCase()) {
+      case 'TECHNICAL': return <BookOpen size={16} className="text-[#8B1A1A]" />;
+      case 'APTITUDE': return <Brain size={16} className="text-[#C8A243]" />;
+      case 'SOFT_SKILLS': return <MessageSquare size={16} className="text-[#4A7C59]" />;
+      default: return <Award size={16} className="text-[#8B1A1A]" />;
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#FFFAF6] p-6 space-y-6 animate-fade-in">
+    <div className="min-h-screen bg-[#F8F5EC] p-6 space-y-6 animate-fade-in text-[#1C1A1A] select-none">
+      {/* Toast Notification */}
+      {successMsg && (
+        <div className="fixed top-20 right-8 z-50 bg-[#1C1A1A] text-white px-5 py-3 rounded-2xl shadow-xl flex items-center gap-2 text-xs font-bold animate-scale-in border border-[#E3D8C4]">
+          <CheckCircle2 size={16} className="text-[#4A7C59]" />
+          <span>{successMsg}</span>
+          <button onClick={() => setSuccessMsg('')} className="ml-2 text-[#8B7B6F] hover:text-white">
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-stone-900">Training & Skill Analytics</h1>
-          <p className="text-stone-500 text-xs mt-0.5">Manage skill development workshops, technical prep, and student participation</p>
+          <h1 className="text-2xl font-bold text-[#1C1A1A]">Training Programs & Employability Analytics</h1>
+          <p className="text-[#5E544A] text-xs mt-0.5">Manage skill development workshops, track student participation, and compile training audits</p>
         </div>
         <div className="flex items-center gap-2">
           <button 
             onClick={handleExportCSV}
-            className="bg-white border border-stone-200 text-stone-700 px-3.5 py-2 rounded-xl text-xs font-semibold hover:bg-stone-50 flex items-center gap-1.5 shadow-xs transition-colors"
+            className="bg-white border border-[#E3D8C4] text-[#1C1A1A] px-3.5 py-2 rounded-xl text-xs font-bold hover:bg-[#F1E9D8] flex items-center gap-1.5 shadow-xs transition-colors"
           >
-            <Download size={14} />
-            <span>Export Analytics</span>
-          </button>
-          <button 
-            onClick={() => setIsPreviewModalOpen(true)}
-            className="bg-white border border-orange-200 text-orange-700 px-3.5 py-2 rounded-xl text-xs font-semibold hover:bg-orange-50 flex items-center gap-1.5 shadow-xs transition-colors"
-          >
-            <Eye size={14} />
-            <span>Preview Report</span>
+            <Download size={14} className="text-[#8B1A1A]" />
+            <span>Export CSV</span>
           </button>
           <button 
             onClick={() => setIsAddModalOpen(true)}
-            className="bg-orange-500 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-orange-600 flex items-center gap-1.5 shadow-sm transition-all active:scale-[0.98]"
+            className="bg-[#8B1A1A] text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-[#A63030] flex items-center gap-1.5 shadow-xs transition-all active:scale-[0.98]"
           >
             <Plus size={14} />
             <span>Add Training Program</span>
@@ -170,145 +167,136 @@ export default function TrainingAnalyticsPage() {
         </div>
       </div>
 
-      {successMsg && (
-        <div className="bg-green-50 border border-green-200 text-green-800 p-4 rounded-xl flex items-center justify-between text-xs font-semibold">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 size={16} className="text-green-600" />
-            <span>{successMsg}</span>
-          </div>
-          <button onClick={() => setSuccessMsg('')} className="text-green-700 hover:text-green-900"><X size={14} /></button>
-        </div>
-      )}
-
-      {/* Metrics Row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        <div className="bg-white p-5 rounded-2xl border border-stone-200 shadow-card flex items-center justify-between">
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white p-5 rounded-2xl border border-[#E3D8C4] shadow-card flex items-center space-x-4">
+          <div className="p-3 bg-[#F1E9D8] text-[#8B1A1A] rounded-xl"><BookOpen size={22} /></div>
           <div>
-            <p className="text-xs text-stone-400 font-bold uppercase tracking-wider mb-1">Aptitude Training</p>
-            <h3 className="text-3xl font-bold text-stone-900">85%</h3>
-            <p className="text-green-600 text-xs font-semibold mt-1">↑ +5% participation</p>
-          </div>
-          <div className="p-3 bg-amber-50 rounded-2xl text-amber-600 border border-amber-100">
-            <Brain size={28} />
-          </div>
-        </div>
-        
-        <div className="bg-white p-5 rounded-2xl border border-stone-200 shadow-card flex items-center justify-between">
-          <div>
-            <p className="text-xs text-stone-400 font-bold uppercase tracking-wider mb-1">Soft Skills & GD</p>
-            <h3 className="text-3xl font-bold text-stone-900">92%</h3>
-            <p className="text-green-600 text-xs font-semibold mt-1">↑ +2% completion</p>
-          </div>
-          <div className="p-3 bg-green-50 rounded-2xl text-green-600 border border-green-100">
-            <MessageSquare size={28} />
+            <p className="text-xs text-[#8B7B6F] font-bold uppercase tracking-wider">Active Modules</p>
+            <h3 className="text-2xl font-bold text-[#1C1A1A]">{programs.length}</h3>
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-stone-200 shadow-card flex items-center justify-between">
+        <div className="bg-white p-5 rounded-2xl border border-[#E3D8C4] shadow-card flex items-center space-x-4">
+          <div className="p-3 bg-[#F1E9D8] text-[#C8A243] rounded-xl"><Brain size={22} /></div>
           <div>
-            <p className="text-xs text-stone-400 font-bold uppercase tracking-wider mb-1">Tech Certifications</p>
-            <h3 className="text-3xl font-bold text-stone-900">64%</h3>
-            <p className="text-orange-600 text-xs font-semibold mt-1">AWS / Java / ML</p>
+            <p className="text-xs text-[#8B7B6F] font-bold uppercase tracking-wider">Aptitude Trainees</p>
+            <h3 className="text-2xl font-bold text-[#1C1A1A]">620</h3>
           </div>
-          <div className="p-3 bg-purple-50 rounded-2xl text-purple-600 border border-purple-100">
-            <Award size={28} />
+        </div>
+
+        <div className="bg-white p-5 rounded-2xl border border-[#E3D8C4] shadow-card flex items-center space-x-4">
+          <div className="p-3 bg-[#F1E9D8] text-[#4A7C59] rounded-xl"><MessageSquare size={22} /></div>
+          <div>
+            <p className="text-xs text-[#8B7B6F] font-bold uppercase tracking-wider">Soft Skills Certified</p>
+            <h3 className="text-2xl font-bold text-[#1C1A1A]">380</h3>
+          </div>
+        </div>
+
+        <div className="bg-white p-5 rounded-2xl border border-[#E3D8C4] shadow-card flex items-center space-x-4">
+          <div className="p-3 bg-[#F1E9D8] text-[#8B1A1A] rounded-xl"><Award size={22} /></div>
+          <div>
+            <p className="text-xs text-[#8B7B6F] font-bold uppercase tracking-wider">Readiness Rate</p>
+            <h3 className="text-2xl font-bold text-[#1C1A1A]">91.4%</h3>
           </div>
         </div>
       </div>
 
-      {/* Main Content Area */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left 2 Cols: Training Programs List */}
         <div className="lg:col-span-2 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-bold text-stone-900 flex items-center gap-2">
-              <Calendar size={16} className="text-orange-500" /> Active & Upcoming Programs ({programs.length})
-            </h2>
-            <span className="text-xs text-stone-500 font-medium">Auto-synced with student portal</span>
-          </div>
+          <div className="bg-white rounded-2xl border border-[#E3D8C4] shadow-card overflow-hidden">
+            <div className="p-5 border-b border-[#E3D8C4] flex items-center justify-between bg-[#F8F5EC]">
+              <h2 className="text-sm font-bold text-[#1C1A1A] flex items-center gap-2">
+                <Calendar size={16} className="text-[#8B1A1A]" />
+                <span>Upcoming Scheduled Programs ({programs.length})</span>
+              </h2>
+              <span className="text-[11px] text-[#8B7B6F] font-semibold">Real-time Student Enrolments</span>
+            </div>
 
-          <div className="space-y-3">
-            {programs.map((program) => {
-              const enrolled = program._count?.enrollments || program.enrollments?.length || 0;
-              const cap = program.capacity || 100;
-              const pct = Math.min(100, Math.round((enrolled / cap) * 100));
-
-              return (
-                <div key={program.id} className="bg-white rounded-2xl border border-stone-200 p-5 shadow-card hover:shadow-md transition-shadow">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
-                    <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-center flex-shrink-0">
-                        {getIconForType(program.type)}
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-stone-900 text-sm">{program.title}</h3>
-                        <p className="text-xs text-stone-500 mt-0.5">Facilitator: <span className="text-stone-700 font-medium">{program.facilitator}</span></p>
-                      </div>
-                    </div>
-                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${getBadgeColor(program.type)} self-start sm:self-auto`}>
-                      {program.type}
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs text-stone-600 bg-stone-50/70 p-3 rounded-xl mb-3">
-                    <div className="flex items-center gap-1.5">
-                      <Calendar size={13} className="text-stone-400" />
-                      <span>{typeof program.date === 'string' && program.date.includes('T') ? new Date(program.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : program.date}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <Clock size={13} className="text-stone-400" />
-                      <span>{program.time}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 col-span-2 sm:col-span-1">
-                      <MapPin size={13} className="text-stone-400" />
-                      <span className="truncate">{program.venue} ({program.mode})</span>
-                    </div>
-                  </div>
-
-                  {/* Progress */}
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-xs">
-                      <span className="text-stone-500 font-medium">Student Registration</span>
-                      <span className="font-bold text-stone-800">{enrolled} / {cap} Seats ({pct}%)</span>
-                    </div>
-                    <div className="w-full bg-stone-100 rounded-full h-2 overflow-hidden">
-                      <div 
-                        className="bg-orange-500 h-2 rounded-full transition-all" 
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                  </div>
+            <div className="divide-y divide-[#E3D8C4]">
+              {isLoading ? (
+                <div className="p-12 text-center text-xs text-[#8B7B6F] flex items-center justify-center gap-2">
+                  <Loader2 size={16} className="animate-spin text-[#8B1A1A]" /> Loading training calendar...
                 </div>
-              );
-            })}
+              ) : programs.length > 0 ? (
+                programs.map((prog) => {
+                  const regCount = prog._count?.enrollments ?? prog.enrollments?.length ?? 0;
+                  const capacity = prog.capacity || 100;
+                  const capacityPct = Math.min(100, Math.round((regCount / capacity) * 100));
+
+                  return (
+                    <div key={prog.id} className="p-5 hover:bg-[#F8F5EC] transition-colors space-y-3">
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-[#F1E9D8] border border-[#E3D8C4] flex items-center justify-center shrink-0">
+                            {getTypeIcon(prog.type)}
+                          </div>
+                          <div>
+                            <h3 className="font-bold text-[#1C1A1A] text-xs">{prog.title}</h3>
+                            <p className="text-[11px] text-[#5E544A]">{prog.facilitator} • {prog.venue} ({prog.mode})</p>
+                          </div>
+                        </div>
+
+                        <span className="bg-[#F1E9D8] text-[#8B1A1A] border border-[#E3D8C4] px-2.5 py-0.5 rounded-full font-extrabold text-[10px] uppercase">
+                          {prog.type}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs bg-[#F8F5EC] p-3 rounded-xl border border-[#E3D8C4]">
+                        <div className="flex items-center gap-2 text-[#5E544A]">
+                          <Clock size={13} className="text-[#8B7B6F]" />
+                          <span className="font-bold text-[#1C1A1A]">{new Date(prog.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} @ {prog.time}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] text-[#5E544A] font-semibold">Enrolled: {regCount} / {capacity}</span>
+                          <span className="text-[11px] font-extrabold text-[#8B1A1A]">{capacityPct}% Full</span>
+                        </div>
+                      </div>
+
+                      <div className="w-full h-1.5 bg-[#F1E9D8] rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full ${capacityPct >= 90 ? 'bg-[#C85555]' : 'bg-[#8B1A1A]'}`} 
+                          style={{ width: `${capacityPct}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="p-12 text-center text-xs text-[#8B7B6F]">
+                  No training programs scheduled yet.
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Right Col: Category Participation Chart */}
+        {/* Right Col: Analytics Breakdown & Reporting Panel */}
         <div className="space-y-6">
-          <div className="bg-white p-5 rounded-2xl border border-stone-200 shadow-card">
-            <h2 className="text-sm font-bold text-stone-900 mb-3">Participation by Category</h2>
-            <ResponsiveContainer width="100%" height={210}>
+          <div className="bg-white p-5 rounded-2xl border border-[#E3D8C4] shadow-card space-y-4">
+            <h2 className="text-sm font-bold text-[#1C1A1A]">Participation by Domain</h2>
+            <ResponsiveContainer width="100%" height={190}>
               <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#F5F5F4" />
-                <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-                <YAxis tick={{ fontSize: 10 }} />
-                <Tooltip />
-                <Bar dataKey="participants" fill="#F97316" radius={[4, 4, 0, 0]} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#F1E9D8" />
+                <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#5E544A' }} stroke="#E3D8C4" />
+                <YAxis tick={{ fontSize: 10, fill: '#5E544A' }} stroke="#E3D8C4" />
+                <Tooltip contentStyle={{ borderRadius: 12, fontSize: 12, border: '1px solid #E3D8C4', backgroundColor: '#FFFFFF', color: '#1C1A1A' }} />
+                <Bar dataKey="participants" fill="#8B1A1A" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
 
-          <div className="bg-orange-50/70 p-5 rounded-2xl border border-orange-200 space-y-3">
-            <h3 className="font-bold text-stone-900 text-xs flex items-center gap-2">
-              <Award size={16} className="text-orange-600" /> Skill Development Policy
+          <div className="bg-[#F1E9D8] p-5 rounded-2xl border border-[#E3D8C4] space-y-3">
+            <h3 className="font-bold text-[#1C1A1A] text-xs flex items-center gap-2">
+              <Award size={16} className="text-[#8B1A1A]" /> Skill Development Policy
             </h3>
-            <p className="text-[11px] text-stone-600 leading-relaxed">
+            <p className="text-[11px] text-[#5E544A] leading-relaxed">
               Students must complete at least 2 Technical and 1 Aptitude module to achieve Placement Readiness certification.
             </p>
             <button
               onClick={() => setIsAddModalOpen(true)}
-              className="w-full py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5"
+              className="w-full py-2.5 bg-[#8B1A1A] hover:bg-[#A63030] text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5"
             >
               <Plus size={14} /> Schedule New Workshop
             </button>
@@ -316,40 +304,40 @@ export default function TrainingAnalyticsPage() {
         </div>
       </div>
 
-      {/* ADD TRAINING PROGRAM MODAL (Requirement 8) */}
+      {/* ADD TRAINING PROGRAM MODAL */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto animate-fade-in">
-          <div className="relative w-full max-w-xl bg-white rounded-2xl shadow-2xl border border-stone-200 my-8 overflow-hidden animate-scale-in">
-            <div className="p-5 border-b border-stone-100 flex items-center justify-between bg-stone-50/70">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto animate-fade-in select-none">
+          <div className="relative w-full max-w-xl bg-white rounded-2xl shadow-2xl border border-[#E3D8C4] my-8 overflow-hidden animate-scale-in">
+            <div className="p-5 border-b border-[#E3D8C4] flex items-center justify-between bg-[#F8F5EC]">
               <div className="flex items-center gap-2">
-                <BookOpen className="text-orange-500" size={18} />
-                <h3 className="font-bold text-stone-900 text-sm">Add Training Program</h3>
+                <BookOpen className="text-[#8B1A1A]" size={18} />
+                <h3 className="font-bold text-[#1C1A1A] text-sm">Add Training Program</h3>
               </div>
-              <button onClick={() => setIsAddModalOpen(false)} className="text-stone-400 hover:text-stone-600 p-1">
+              <button onClick={() => setIsAddModalOpen(false)} className="text-[#8B7B6F] hover:text-[#1C1A1A] p-1">
                 <X size={16} />
               </button>
             </div>
 
             <form onSubmit={handleCreateProgram} className="p-6 space-y-4 text-xs">
               <div>
-                <label className="block font-semibold text-stone-700 mb-1">Program Title *</label>
+                <label className="block font-bold text-[#5E544A] mb-1">Program Title *</label>
                 <input
                   type="text"
                   value={title}
                   onChange={e => setTitle(e.target.value)}
                   placeholder="e.g. Advanced Java & Spring Boot Masterclass"
                   required
-                  className="w-full border border-stone-200 rounded-xl px-3 py-2 text-xs focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
+                  className="w-full border border-[#E3D8C4] rounded-xl px-3 py-2 text-xs bg-[#F8F5EC] text-[#1C1A1A] focus:ring-1 focus:ring-[#8B1A1A] focus:border-[#8B1A1A]"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-stone-700 mb-1">Category Type *</label>
+                  <label className="block font-bold text-[#5E544A] mb-1">Category Type *</label>
                   <select
                     value={type}
                     onChange={e => setType(e.target.value)}
-                    className="w-full border border-stone-200 rounded-xl px-3 py-2 text-xs bg-white focus:ring-1 focus:ring-orange-500"
+                    className="w-full border border-[#E3D8C4] rounded-xl px-3 py-2 text-xs bg-white text-[#1C1A1A] focus:ring-1 focus:ring-[#8B1A1A]"
                   >
                     <option value="TECHNICAL">Technical Workshop</option>
                     <option value="APTITUDE">Quantitative Aptitude</option>
@@ -358,11 +346,11 @@ export default function TrainingAnalyticsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block font-semibold text-stone-700 mb-1">Delivery Mode</label>
+                  <label className="block font-bold text-[#5E544A] mb-1">Delivery Mode</label>
                   <select
                     value={mode}
                     onChange={e => setMode(e.target.value)}
-                    className="w-full border border-stone-200 rounded-xl px-3 py-2 text-xs bg-white focus:ring-1 focus:ring-orange-500"
+                    className="w-full border border-[#E3D8C4] rounded-xl px-3 py-2 text-xs bg-white text-[#1C1A1A] focus:ring-1 focus:ring-[#8B1A1A]"
                   >
                     <option value="OFFLINE">Offline (On-Campus)</option>
                     <option value="ONLINE">Online (Virtual)</option>
@@ -373,67 +361,67 @@ export default function TrainingAnalyticsPage() {
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block font-semibold text-stone-700 mb-1">Date *</label>
+                  <label className="block font-bold text-[#5E544A] mb-1">Date *</label>
                   <input
                     type="date"
                     value={date}
                     onChange={e => setDate(e.target.value)}
                     required
-                    className="w-full border border-stone-200 rounded-xl px-3 py-2 text-xs focus:ring-1 focus:ring-orange-500"
+                    className="w-full border border-[#E3D8C4] rounded-xl px-3 py-2 text-xs bg-[#F8F5EC] text-[#1C1A1A] focus:ring-1 focus:ring-[#8B1A1A]"
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold text-stone-700 mb-1">Time</label>
+                  <label className="block font-bold text-[#5E544A] mb-1">Time</label>
                   <input
                     type="text"
                     value={time}
                     onChange={e => setTime(e.target.value)}
                     placeholder="10:00 AM"
-                    className="w-full border border-stone-200 rounded-xl px-3 py-2 text-xs focus:ring-1 focus:ring-orange-500"
+                    className="w-full border border-[#E3D8C4] rounded-xl px-3 py-2 text-xs bg-[#F8F5EC] text-[#1C1A1A] focus:ring-1 focus:ring-[#8B1A1A]"
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold text-stone-700 mb-1">Max Capacity</label>
+                  <label className="block font-bold text-[#5E544A] mb-1">Max Capacity</label>
                   <input
                     type="number"
                     value={capacity}
                     onChange={e => setCapacity(e.target.value)}
-                    className="w-full border border-stone-200 rounded-xl px-3 py-2 text-xs focus:ring-1 focus:ring-orange-500"
+                    className="w-full border border-[#E3D8C4] rounded-xl px-3 py-2 text-xs bg-[#F8F5EC] text-[#1C1A1A] focus:ring-1 focus:ring-[#8B1A1A]"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-stone-700 mb-1">Venue / Platform</label>
+                  <label className="block font-bold text-[#5E544A] mb-1">Venue / Platform</label>
                   <input
                     type="text"
                     value={venue}
                     onChange={e => setVenue(e.target.value)}
                     placeholder="e.g. Seminar Hall B / Zoom"
-                    className="w-full border border-stone-200 rounded-xl px-3 py-2 text-xs focus:ring-1 focus:ring-orange-500"
+                    className="w-full border border-[#E3D8C4] rounded-xl px-3 py-2 text-xs bg-[#F8F5EC] text-[#1C1A1A] focus:ring-1 focus:ring-[#8B1A1A]"
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold text-stone-700 mb-1">Facilitator / Speaker</label>
+                  <label className="block font-bold text-[#5E544A] mb-1">Facilitator / Speaker</label>
                   <input
                     type="text"
                     value={facilitator}
                     onChange={e => setFacilitator(e.target.value)}
                     placeholder="e.g. Dr. Rajesh Kumar (Ex-Google)"
-                    className="w-full border border-stone-200 rounded-xl px-3 py-2 text-xs focus:ring-1 focus:ring-orange-500"
+                    className="w-full border border-[#E3D8C4] rounded-xl px-3 py-2 text-xs bg-[#F8F5EC] text-[#1C1A1A] focus:ring-1 focus:ring-[#8B1A1A]"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block font-semibold text-stone-700 mb-1">Skills & Tags (comma separated)</label>
+                <label className="block font-bold text-[#5E544A] mb-1">Skills & Tags (comma separated)</label>
                 <input
                   type="text"
                   value={tagsInput}
                   onChange={e => setTagsInput(e.target.value)}
                   placeholder="Java, React, System Design"
-                  className="w-full border border-stone-200 rounded-xl px-3 py-2 text-xs focus:ring-1 focus:ring-orange-500"
+                  className="w-full border border-[#E3D8C4] rounded-xl px-3 py-2 text-xs bg-[#F8F5EC] text-[#1C1A1A] focus:ring-1 focus:ring-[#8B1A1A]"
                 />
               </div>
 
@@ -441,96 +429,20 @@ export default function TrainingAnalyticsPage() {
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
-                  className="px-4 py-2 border border-stone-200 rounded-xl text-stone-600 hover:bg-stone-50 font-semibold"
+                  className="px-4 py-2 border border-[#E3D8C4] rounded-xl text-[#5E544A] hover:bg-[#F8F5EC] font-bold"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-5 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold flex items-center gap-1.5 shadow-sm disabled:opacity-50"
+                  className="px-5 py-2 bg-[#8B1A1A] hover:bg-[#A63030] text-white rounded-xl font-bold flex items-center gap-1.5 shadow-xs disabled:opacity-50"
                 >
                   {submitting && <Loader2 size={13} className="animate-spin" />}
                   Publish Program
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* PREVIEW REPORT MODAL (Requirement 8) */}
-      {isPreviewModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto animate-fade-in">
-          <div className="relative w-full max-w-3xl bg-white rounded-2xl shadow-2xl border border-stone-200 my-8 overflow-hidden animate-scale-in">
-            <div className="p-4 bg-stone-900 text-white flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Award className="text-orange-400" size={18} />
-                <span className="font-bold text-xs">Training & Skill Development Audit Preview</span>
-              </div>
-              <button onClick={() => setIsPreviewModalOpen(false)} className="text-stone-400 hover:text-white p-1">
-                <X size={16} />
-              </button>
-            </div>
-
-            <div className="p-8 space-y-6 text-stone-900">
-              <div className="border-b border-stone-200 pb-3 text-center">
-                <h2 className="text-base font-bold uppercase">GGSIPU Training & Placement Cell</h2>
-                <p className="text-xs text-stone-500">Skill Development & Employability Enhancement Report (2023–24)</p>
-              </div>
-
-              <div className="grid grid-cols-3 gap-3 text-center">
-                <div className="p-3 bg-stone-50 border border-stone-200 rounded-xl">
-                  <p className="text-[10px] text-stone-500 uppercase font-bold">Programs Conducted</p>
-                  <p className="text-xl font-bold text-stone-900">{programs.length}</p>
-                </div>
-                <div className="p-3 bg-stone-50 border border-stone-200 rounded-xl">
-                  <p className="text-[10px] text-stone-500 uppercase font-bold">Total Registrations</p>
-                  <p className="text-xl font-bold text-green-700">1,660</p>
-                </div>
-                <div className="p-3 bg-stone-50 border border-stone-200 rounded-xl">
-                  <p className="text-[10px] text-stone-500 uppercase font-bold">Avg Attendance</p>
-                  <p className="text-xl font-bold text-orange-600">88.2%</p>
-                </div>
-              </div>
-
-              <table className="w-full border border-stone-200 text-xs">
-                <thead className="bg-stone-100">
-                  <tr>
-                    <th className="p-2 text-left border-b">Module Title</th>
-                    <th className="p-2 text-center border-b">Domain</th>
-                    <th className="p-2 text-center border-b">Capacity</th>
-                    <th className="p-2 text-center border-b">Enrolled</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-stone-100">
-                  {programs.map((p, i) => (
-                    <tr key={i} className="even:bg-stone-50/50">
-                      <td className="p-2 font-medium">{p.title}</td>
-                      <td className="p-2 text-center">{p.type}</td>
-                      <td className="p-2 text-center">{p.capacity || 100}</td>
-                      <td className="p-2 text-center font-bold text-green-700">{p._count?.enrollments || p.enrollments?.length || 0}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  onClick={() => setIsPreviewModalOpen(false)}
-                  className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-xs font-semibold"
-                >
-                  Close Preview
-                </button>
-                <button
-                  onClick={handleExportCSV}
-                  className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold flex items-center gap-1.5"
-                >
-                  <Download size={13} />
-                  Download Audit CSV
-                </button>
-              </div>
-            </div>
           </div>
         </div>
       )}

@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import prisma, { withRetry } from '@/lib/prisma';
 import { auth } from '@/lib/auth';
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: any }
 ) {
   try {
     const session = await auth();
@@ -12,19 +12,21 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized. STUDENT access required.' }, { status: 403 });
     }
 
-    const { id: programId } = await params;
+    const rawParams = await context.params;
+    const programId = rawParams?.id;
     
     // Resolve Student ID
     let studentId = session.user.profileId;
     if (!studentId) {
-      const studentRecord = await prisma.student.findFirst({
+      const studentRecord = await withRetry(() => prisma.student.findFirst({
         where: {
           OR: [
             { userId: session.user.id },
-            { userId: session.user.userId }
+            { userId: session.user.userId },
+            { user: { email: session.user.email?.toLowerCase().trim() || '' } }
           ]
         }
-      });
+      }));
       studentId = studentRecord?.id || session.user.id;
     }
 
@@ -32,14 +34,14 @@ export async function POST(
       return NextResponse.json({ error: 'Student ID not found' }, { status: 400 });
     }
 
-    const program = await prisma.trainingProgram.findUnique({
+    const program = await withRetry(() => prisma.trainingProgram.findUnique({
       where: { id: programId },
       include: {
         _count: {
           select: { enrollments: true },
         },
       },
-    });
+    }));
 
     if (!program) {
       return NextResponse.json({ error: 'Program not found' }, { status: 404 });
@@ -49,7 +51,7 @@ export async function POST(
       return NextResponse.json({ error: 'Program is full' }, { status: 400 });
     }
 
-    const enrollment = await prisma.enrollment.upsert({
+    const enrollment = await withRetry(() => prisma.enrollment.upsert({
       where: {
         studentId_trainingProgramId: {
           studentId,
@@ -61,7 +63,7 @@ export async function POST(
         studentId,
         trainingProgramId: programId,
       },
-    });
+    }));
 
     return NextResponse.json({ success: true, enrollment }, { status: 201 });
   } catch (error: any) {
@@ -72,7 +74,7 @@ export async function POST(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: any }
 ) {
   try {
     const session = await auth();
@@ -80,44 +82,43 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized. STUDENT access required.' }, { status: 403 });
     }
 
-    const { id: programId } = await params;
+    const rawParams = await context.params;
+    const programId = rawParams?.id;
     
     let studentId = session.user.profileId;
     if (!studentId) {
-      const studentRecord = await prisma.student.findFirst({
+      const studentRecord = await withRetry(() => prisma.student.findFirst({
         where: {
           OR: [
             { userId: session.user.id },
-            { userId: session.user.userId }
+            { userId: session.user.userId },
+            { user: { email: session.user.email?.toLowerCase().trim() || '' } }
           ]
         }
-      });
+      }));
       studentId = studentRecord?.id || session.user.id;
     }
 
-    const enrollment = await prisma.enrollment.findFirst({
+    const enrollment = await withRetry(() => prisma.enrollment.findFirst({
       where: {
         trainingProgramId: programId,
-        OR: [
-          { studentId },
-          { studentId: session.user.id }
-        ]
+        studentId,
       },
-    });
+    }));
 
     if (!enrollment) {
-      return NextResponse.json({ error: 'Enrollment not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Enrollment record not found' }, { status: 404 });
     }
 
-    await prisma.enrollment.delete({
+    await withRetry(() => prisma.enrollment.delete({
       where: {
         id: enrollment.id,
       },
-    });
+    }));
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, message: 'Successfully unenrolled from program' });
   } catch (error: any) {
-    console.error('Error deleting enrollment:', error);
-    return NextResponse.json({ error: error.message || 'Failed to un-enroll' }, { status: 500 });
+    console.error('Error unenrolling from training:', error);
+    return NextResponse.json({ error: error.message || 'Failed to unenroll from program' }, { status: 500 });
   }
 }

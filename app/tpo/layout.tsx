@@ -25,7 +25,7 @@ export default function TPOLayout({ children }: { children: React.ReactNode }) {
   const [readIds, setReadIds] = useState<string[]>([]);
   const [dismissedIds, setDismissedIds] = useState<string[]>([]);
 
-  // Real-time Global Search in Header (Requirement 3)
+  // Search in Header
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
@@ -103,17 +103,17 @@ export default function TPOLayout({ children }: { children: React.ReactNode }) {
     : pathname.split('/').pop()?.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Dashboard';
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-[#FFFAF6]">
+    <div className="flex h-screen w-full overflow-hidden bg-[#F8F5EC] text-[#1C1A1A]">
       <Sidebar role="tpo" />
       <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Header z-index set to z-10 so all modals/drawers appear above it in foreground */}
-        <header className="flex h-16 shrink-0 items-center justify-between border-b border-stone-200 bg-white px-8 shadow-xs z-10 relative select-none">
-          <h1 className="text-lg font-bold text-stone-900 select-none cursor-default">{pageTitle}</h1>
+        {/* Header */}
+        <header className="flex h-16 shrink-0 items-center justify-between border-b border-[#E3D8C4] bg-white px-8 shadow-xs z-10 relative select-none">
+          <h1 className="text-base font-bold text-[#1C1A1A] select-none cursor-default">{pageTitle}</h1>
           
           <div className="flex items-center gap-4">
-            {/* Functional Search Bar with Live Result Dropdown (Requirement 3) */}
+            {/* Functional Search Bar */}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+              <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#8B7B6F]" />
               <input
                 type="text"
                 placeholder="Search students, drives, companies..."
@@ -123,12 +123,12 @@ export default function TPOLayout({ children }: { children: React.ReactNode }) {
                   setIsSearchOpen(true);
                 }}
                 onFocus={() => setIsSearchOpen(true)}
-                className="h-9 w-64 rounded-xl border border-stone-200 bg-stone-50 pl-9 pr-8 text-xs outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 select-text"
+                className="h-9 w-64 rounded-xl border border-[#E3D8C4] bg-[#F8F5EC] pl-9 pr-8 text-xs text-[#1C1A1A] placeholder-[#8B7B6F] outline-none focus:border-[#8B1A1A] focus:ring-1 focus:ring-[#8B1A1A] select-text"
               />
               {searchQuery && (
                 <button 
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#8B7B6F] hover:text-[#1C1A1A]"
                 >
                   <X size={13} />
                 </button>
@@ -138,24 +138,24 @@ export default function TPOLayout({ children }: { children: React.ReactNode }) {
               {isSearchOpen && searchQuery.trim() && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setIsSearchOpen(false)} />
-                  <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white border border-stone-200 rounded-2xl shadow-xl z-50 overflow-hidden divide-y divide-stone-100 animate-scale-in">
+                  <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white border border-[#E3D8C4] rounded-2xl shadow-xl z-50 overflow-hidden divide-y divide-[#E3D8C4] animate-scale-in">
                     {hasSearchResults ? (
                       <div className="p-2 space-y-2 max-h-80 overflow-y-auto">
                         {matchingDrives.length > 0 && (
                           <div>
-                            <p className="px-2.5 py-1 text-[10px] font-bold text-stone-400 uppercase">Placement Drives</p>
+                            <p className="px-2.5 py-1 text-[10px] font-bold text-[#8B7B6F] uppercase">Placement Drives</p>
                             {matchingDrives.map(d => (
                               <Link
                                 key={d.id}
                                 href="/tpo/drives"
                                 onClick={() => setIsSearchOpen(false)}
-                                className="p-2 hover:bg-orange-50 rounded-xl flex items-center justify-between text-xs"
+                                className="p-2 hover:bg-[#F1E9D8] rounded-xl flex items-center justify-between text-xs"
                               >
                                 <div>
-                                  <p className="font-bold text-stone-900">{d.role}</p>
-                                  <p className="text-[11px] text-stone-500">{d.company?.name} • ₹{d.ctc} LPA</p>
+                                  <p className="font-bold text-[#1C1A1A]">{d.role}</p>
+                                  <p className="text-[11px] text-[#5E544A]">{d.company?.name} • ₹{d.ctc} LPA</p>
                                 </div>
-                                <ArrowRight size={13} className="text-orange-500" />
+                                <ArrowRight size={13} className="text-[#8B1A1A]" />
                               </Link>
                             ))}
                           </div>
@@ -163,19 +163,19 @@ export default function TPOLayout({ children }: { children: React.ReactNode }) {
 
                         {matchingStudents.length > 0 && (
                           <div>
-                            <p className="px-2.5 py-1 text-[10px] font-bold text-stone-400 uppercase">Candidates & Students</p>
+                            <p className="px-2.5 py-1 text-[10px] font-bold text-[#8B7B6F] uppercase">Candidates & Students</p>
                             {matchingStudents.map(s => (
                               <Link
                                 key={s.id}
                                 href="/tpo/applicants"
                                 onClick={() => setIsSearchOpen(false)}
-                                className="p-2 hover:bg-orange-50 rounded-xl flex items-center justify-between text-xs"
+                                className="p-2 hover:bg-[#F1E9D8] rounded-xl flex items-center justify-between text-xs"
                               >
                                 <div>
-                                  <p className="font-bold text-stone-900">{s.name}</p>
-                                  <p className="text-[11px] text-stone-500">{s.rollNo} • {s.branch} (CGPA: {s.cgpa})</p>
+                                  <p className="font-bold text-[#1C1A1A]">{s.name}</p>
+                                  <p className="text-[11px] text-[#5E544A]">{s.rollNo} • {s.branch} (CGPA: {s.cgpa})</p>
                                 </div>
-                                <ArrowRight size={13} className="text-orange-500" />
+                                <ArrowRight size={13} className="text-[#8B1A1A]" />
                               </Link>
                             ))}
                           </div>
@@ -183,26 +183,26 @@ export default function TPOLayout({ children }: { children: React.ReactNode }) {
 
                         {matchingCompanies.length > 0 && (
                           <div>
-                            <p className="px-2.5 py-1 text-[10px] font-bold text-stone-400 uppercase">Companies</p>
+                            <p className="px-2.5 py-1 text-[10px] font-bold text-[#8B7B6F] uppercase">Companies</p>
                             {matchingCompanies.map(c => (
                               <Link
                                 key={c.id}
                                 href="/tpo/drives"
                                 onClick={() => setIsSearchOpen(false)}
-                                className="p-2 hover:bg-orange-50 rounded-xl flex items-center justify-between text-xs"
+                                className="p-2 hover:bg-[#F1E9D8] rounded-xl flex items-center justify-between text-xs"
                               >
                                 <div>
-                                  <p className="font-bold text-stone-900">{c.name}</p>
-                                  <p className="text-[11px] text-stone-500">{c.industry || 'Technology'} • {c.tier || 'Tier-1'}</p>
+                                  <p className="font-bold text-[#1C1A1A]">{c.name}</p>
+                                  <p className="text-[11px] text-[#5E544A]">{c.industry || 'Technology'} • {c.tier || 'Tier-1'}</p>
                                 </div>
-                                <ArrowRight size={13} className="text-orange-500" />
+                                <ArrowRight size={13} className="text-[#8B1A1A]" />
                               </Link>
                             ))}
                           </div>
                         )}
                       </div>
                     ) : (
-                      <div className="p-6 text-center text-xs text-stone-400">
+                      <div className="p-6 text-center text-xs text-[#8B7B6F]">
                         No matches found for "{searchQuery}"
                       </div>
                     )}
@@ -211,20 +211,20 @@ export default function TPOLayout({ children }: { children: React.ReactNode }) {
               )}
             </div>
 
-            {/* Notification Bell with Dropdown (Requirement 2) */}
+            {/* Notification Bell */}
             <div className="relative">
               <button 
                 onClick={() => setShowNotifications(!showNotifications)}
                 className={`relative p-2 rounded-xl border transition-all select-none ${
                   showNotifications 
-                    ? 'bg-orange-50 text-orange-600 border-orange-200 shadow-xs' 
-                    : 'text-stone-500 hover:text-stone-700 hover:bg-stone-50 border-stone-200'
+                    ? 'bg-[#F1E9D8] text-[#8B1A1A] border-[#E3D8C4] shadow-xs' 
+                    : 'text-[#5E544A] hover:text-[#1C1A1A] hover:bg-[#F8F5EC] border-[#E3D8C4]'
                 }`}
                 title="Notifications"
               >
                 <Bell className="h-4 w-4" />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-orange-500 text-white text-[10px] font-bold flex items-center justify-center ring-2 ring-white animate-pulse">
+                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-[#8B1A1A] text-white text-[10px] font-bold flex items-center justify-center ring-2 ring-white">
                     {unreadCount}
                   </span>
                 )}
@@ -232,43 +232,43 @@ export default function TPOLayout({ children }: { children: React.ReactNode }) {
 
               {/* Notification Popover Dropdown */}
               {showNotifications && (
-                <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white border border-stone-200 rounded-2xl shadow-xl z-50 overflow-hidden animate-scale-in">
-                  <div className="p-4 border-b border-stone-100 flex items-center justify-between bg-stone-50/70">
+                <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white border border-[#E3D8C4] rounded-2xl shadow-xl z-50 overflow-hidden animate-scale-in">
+                  <div className="p-4 border-b border-[#E3D8C4] flex items-center justify-between bg-[#F8F5EC]">
                     <div className="flex items-center gap-2">
-                      <h3 className="font-bold text-stone-900 text-xs select-none">Notifications</h3>
+                      <h3 className="font-bold text-[#1C1A1A] text-xs select-none">Notifications</h3>
                     </div>
                     <div className="flex items-center gap-2">
                       {unreadCount > 0 && (
                         <button 
                           onClick={markAllRead} 
-                          className="text-[11px] text-orange-600 hover:text-orange-700 font-semibold"
+                          className="text-[11px] text-[#8B1A1A] hover:text-[#A63030] font-bold"
                         >
                           Mark read
                         </button>
                       )}
                       <button 
                         onClick={clearAll} 
-                        className="text-[11px] text-stone-400 hover:text-red-600 ml-1"
+                        className="text-[11px] text-[#8B7B6F] hover:text-[#C85555] ml-1"
                         title="Clear all"
                       >
                         <Trash2 size={12} />
                       </button>
                       <button 
                         onClick={() => setShowNotifications(false)}
-                        className="text-stone-400 hover:text-stone-600 ml-1"
+                        className="text-[#8B7B6F] hover:text-[#1C1A1A] ml-1"
                       >
                         <X size={14} />
                       </button>
                     </div>
                   </div>
 
-                  <div className="max-h-80 overflow-y-auto divide-y divide-stone-100">
+                  <div className="max-h-80 overflow-y-auto divide-y divide-[#E3D8C4]">
                     {visibleNotifications.length > 0 ? (
                       visibleNotifications.map(n => (
                         <div
                           key={n.id}
-                          className={`p-3.5 hover:bg-stone-50/80 transition-colors flex items-start gap-3 relative group ${
-                            n.unread ? 'bg-orange-50/40' : ''
+                          className={`p-3.5 hover:bg-[#F8F5EC] transition-colors flex items-start gap-3 relative group ${
+                            n.unread ? 'bg-[#F1E9D8]/50' : ''
                           }`}
                         >
                           <Link
@@ -277,27 +277,26 @@ export default function TPOLayout({ children }: { children: React.ReactNode }) {
                             className="flex items-start gap-3 flex-1 min-w-0"
                           >
                             <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 text-xs ${
-                              n.type === 'drive' ? 'bg-amber-100 text-amber-700' :
-                              n.type === 'offer' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-600'
+                              n.type === 'drive' ? 'bg-[#F1E9D8] text-[#C8A243]' :
+                              n.type === 'offer' ? 'bg-[#F1E9D8] text-[#4A7C59]' : 'bg-[#F1E9D8] text-[#8B1A1A]'
                             }`}>
                               {n.type === 'drive' ? <AlertCircle size={14} /> :
                                n.type === 'offer' ? <Award size={14} /> : <Users size={14} />}
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-xs font-bold text-stone-900 truncate">{n.title}</p>
-                              <p className="text-[11px] text-stone-500 mt-0.5 leading-relaxed">{n.desc}</p>
-                              <p className="text-[10px] text-stone-400 mt-1">{n.time}</p>
+                              <p className="text-xs font-bold text-[#1C1A1A] truncate">{n.title}</p>
+                              <p className="text-[11px] text-[#5E544A] mt-0.5 leading-relaxed">{n.desc}</p>
+                              <p className="text-[10px] text-[#8B7B6F] mt-1">{n.time}</p>
                             </div>
                           </Link>
 
-                          {/* Individual Notification Delete Button (Requirement 2) */}
                           <div className="flex items-center gap-1">
                             {n.unread && (
-                              <span className="w-2 h-2 rounded-full bg-orange-500 flex-shrink-0" />
+                              <span className="w-2 h-2 rounded-full bg-[#8B1A1A] flex-shrink-0" />
                             )}
                             <button
                               onClick={(e) => deleteSingleNotification(e, n.id)}
-                              className="opacity-0 group-hover:opacity-100 p-1 text-stone-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                              className="opacity-0 group-hover:opacity-100 p-1 text-[#8B7B6F] hover:text-[#C85555] hover:bg-[#F8F5EC] rounded-lg transition-all"
                               title="Delete this notification"
                             >
                               <Trash2 size={12} />
@@ -306,7 +305,7 @@ export default function TPOLayout({ children }: { children: React.ReactNode }) {
                         </div>
                       ))
                     ) : (
-                      <div className="py-8 text-center text-xs text-stone-400">
+                      <div className="py-8 text-center text-xs text-[#8B7B6F]">
                         No active notifications right now.
                       </div>
                     )}
@@ -316,13 +315,13 @@ export default function TPOLayout({ children }: { children: React.ReactNode }) {
             </div>
 
             {/* Avatar */}
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#FFF7ED] font-bold text-xs text-[#F97316] border border-[#F97316]/20 select-none">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#F1E9D8] font-bold text-xs text-[#8B1A1A] border border-[#E3D8C4] select-none shadow-xs">
               TA
             </div>
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto bg-[#FFFAF6]">
+        <main className="flex-1 overflow-y-auto bg-[#F8F5EC]">
           {children}
         </main>
       </div>

@@ -27,19 +27,29 @@ export default function ReportsAnalyticsPage() {
 
   const stats = statsData || fallbackStats;
 
-  const branchStats: BranchStat[] = statsData?.branchStats || [
-    { branch: 'AI & Data Science (AI-DS)', eligible: 220, placed: 205, placedPercentage: 93.1, avgCTC: '14.5', medianCTC: '12.0', highestCTC: '52.0' },
-    { branch: 'AI & Machine Learning (AI-ML)', eligible: 200, placed: 185, placedPercentage: 92.5, avgCTC: '13.8', medianCTC: '11.5', highestCTC: '48.0' },
-    { branch: 'Augmented Reality (AR)', eligible: 160, placed: 135, placedPercentage: 84.3, avgCTC: '10.5', medianCTC: '9.0', highestCTC: '28.0' },
-    { branch: 'Industrial IoT (IIOT)', eligible: 150, placed: 125, placedPercentage: 83.3, avgCTC: '9.8', medianCTC: '8.5', highestCTC: '24.0' },
-  ];
+  // Dynamic current academic session calculations
+  const currentYear = new Date().getFullYear();
+  const nextYearShort = String(currentYear + 1).slice(-2);
+  const academicYearStr = `${currentYear}–${nextYearShort}`;
+  const nirfDocId = `GGSIPU/TPC/NIRF-${currentYear}`;
+  const nirfAccreditationCycle = `NIRF Ranking ${currentYear + 1}`;
+
+  const branchStats: BranchStat[] = (statsData?.branchStats || [
+    { branch: 'AI-DS', eligible: 0, placed: 0, placedPercentage: 0, avgCTC: '0', medianCTC: '0', highestCTC: '0' },
+    { branch: 'AI-ML', eligible: 0, placed: 0, placedPercentage: 0, avgCTC: '0', medianCTC: '0', highestCTC: '0' },
+    { branch: 'AR', eligible: 0, placed: 0, placedPercentage: 0, avgCTC: '0', medianCTC: '0', highestCTC: '0' },
+    { branch: 'IIOT', eligible: 0, placed: 0, placedPercentage: 0, avgCTC: '0', medianCTC: '0', highestCTC: '0' },
+  ]).map((b: any) => ({
+    ...b,
+    placedPercentage: Math.min(100, Math.max(0, Number(b.placedPercentage) || 0))
+  }));
 
   const ctcBands = [
-    { name: '< 6 LPA', count: 120 },
-    { name: '6 - 10 LPA', count: 350 },
-    { name: '10 - 15 LPA', count: 180 },
-    { name: '15 - 25 LPA', count: 70 },
-    { name: '> 25 LPA (Dream)', count: 25 },
+    { name: '< 6 LPA', count: 1 },
+    { name: '6 - 10 LPA', count: 2 },
+    { name: '10 - 15 LPA', count: 3 },
+    { name: '15 - 25 LPA', count: 2 },
+    { name: '> 25 LPA (Dream)', count: 2 },
   ];
 
   const monthlyOffers = statsData?.monthlyOffers || fallbackStats.monthlyOffers;
@@ -50,11 +60,71 @@ export default function ReportsAnalyticsPage() {
       const placedPct = stat.placedPercentage || ((stat.placed / Math.max(stat.eligible, 1)) * 100).toFixed(1);
       csv += `"${stat.branch}",${stat.eligible},${stat.placed},${placedPct},${stat.avgCTC},${stat.medianCTC},${stat.highestCTC}\n`;
     });
-    downloadCSV('GGSIPU_NIRF_Placement_Report_2026.csv', branchStats as any);
+    downloadCSV(`GGSIPU_NIRF_Placement_Report_${currentYear}.csv`, branchStats as any);
   };
 
   const handlePrintCompiled = () => {
-    window.print();
+    const reportElement = document.getElementById('nirf-printable-report');
+    if (!reportElement) {
+      window.print();
+      return;
+    }
+
+    const printWindow = window.open('', '_blank', 'width=900,height=750');
+    if (printWindow) {
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>GGSIPU NIRF Placement Assessment Dossier - ${currentYear}</title>
+            <style>
+              @page { size: A4 portrait; margin: 15mm; }
+              body { 
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+                color: #1C1A1A; 
+                margin: 0; 
+                padding: 16px; 
+                background: #fff; 
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+              }
+              h1, h2, h3, h4, p, table { margin: 0; }
+              .border-b-2 { border-bottom: 2px solid #1C1A1A; }
+              .border-b { border-bottom: 1px solid #E3D8C4; }
+              .border { border: 1px solid #E3D8C4; }
+              .bg-subtle { background-color: #F8F5EC !important; }
+              .bg-highlight { background-color: #F1E9D8 !important; }
+              .text-accent { color: #8B1A1A !important; }
+              .text-success { color: #4A7C59 !important; }
+              .text-muted { color: #5E544A !important; }
+              .text-dim { color: #8B7B6F !important; }
+              table { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 16px; }
+              th, td { border: 1px solid #E3D8C4; padding: 7px 10px; font-size: 11px; }
+              th { background-color: #F8F5EC !important; text-align: center; font-weight: bold; }
+              td.text-left { text-align: left; }
+              td.text-center { text-align: center; }
+              .grid { display: grid; }
+              .grid-cols-4 { grid-template-columns: repeat(4, 1fr); gap: 12px; }
+              .grid-cols-6 { grid-template-columns: repeat(6, 1fr); gap: 8px; }
+              .grid-cols-2 { grid-template-columns: repeat(2, 1fr); gap: 24px; }
+              .kpi-box { border: 1px solid #E3D8C4; padding: 8px; border-radius: 6px; text-align: center; background: #fff; }
+              .meta-box { background-color: #F8F5EC !important; border: 1px solid #E3D8C4; padding: 10px; border-radius: 8px; margin-bottom: 20px; }
+            </style>
+          </head>
+          <body>
+            ${reportElement.innerHTML}
+            <script>
+              window.onload = function() {
+                window.focus();
+                window.print();
+                setTimeout(function() { window.close(); }, 500);
+              };
+            </script>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+    }
   };
 
   const sortedBranchStats = [...branchStats].sort((a: any, b: any) => {
@@ -78,27 +148,29 @@ export default function ReportsAnalyticsPage() {
 
   const totalEligible = branchStats.reduce((acc, curr) => acc + curr.eligible, 0);
   const totalPlaced = branchStats.reduce((acc, curr) => acc + curr.placed, 0);
-  const overallPlacementRate = ((totalPlaced / Math.max(totalEligible, 1)) * 100).toFixed(1);
+  const overallPlacementRate = totalEligible > 0 
+    ? Math.min(100, Number(((totalPlaced / totalEligible) * 100).toFixed(1)))
+    : 0;
 
   return (
-    <div className="min-h-screen bg-[#FFFAF6] p-6 space-y-6 animate-fade-in select-none">
+    <div className="min-h-screen bg-[#F8F5EC] p-6 space-y-6 animate-fade-in select-none text-[#1C1A1A]">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 select-none">
         <div>
-          <h1 className="text-2xl font-bold text-stone-900 select-none">Placement Reports & NIRF Analytics</h1>
-          <p className="text-stone-500 text-xs mt-0.5 select-none">Official accreditation reports and verifiable statistical exports</p>
+          <h1 className="text-2xl font-bold text-[#1C1A1A] select-none">Placement Reports & NIRF Analytics</h1>
+          <p className="text-[#5E544A] text-xs mt-0.5 select-none font-medium">Official accreditation reports and verifiable statistical exports</p>
         </div>
         <div className="flex items-center gap-2">
           <button 
             onClick={handleExportCSV}
-            className="bg-white border border-stone-200 text-stone-700 px-3.5 py-2 rounded-xl text-xs font-semibold hover:bg-stone-50 flex items-center gap-1.5 shadow-xs transition-colors"
+            className="bg-white border border-[#E3D8C4] text-[#1C1A1A] px-3.5 py-2 rounded-xl text-xs font-bold hover:bg-[#F1E9D8] flex items-center gap-1.5 shadow-xs transition-colors"
           >
-            <Download size={14} />
+            <Download size={14} className="text-[#8B1A1A]" />
             <span>Export CSV</span>
           </button>
           <button 
             onClick={() => setShowCompiledModal(true)}
-            className="bg-orange-500 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-orange-600 flex items-center gap-1.5 shadow-sm transition-all active:scale-[0.98]"
+            className="bg-[#8B1A1A] text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-[#A63030] flex items-center gap-1.5 shadow-xs transition-all active:scale-[0.98]"
           >
             <FileText size={14} />
             <span>Compiled Official NIRF Report</span>
@@ -108,141 +180,144 @@ export default function ReportsAnalyticsPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-2xl border border-stone-200 shadow-card flex items-center space-x-4">
-          <div className="p-3 bg-orange-50 text-orange-600 rounded-xl"><Users size={22} /></div>
+        <div className="bg-white p-5 rounded-2xl border border-[#E3D8C4] shadow-card flex items-center space-x-4">
+          <div className="p-3 bg-[#F1E9D8] text-[#8B1A1A] rounded-xl"><Users size={22} /></div>
           <div>
-            <p className="text-xs text-stone-400 font-bold uppercase tracking-wider">Placement Rate</p>
+            <p className="text-xs text-[#8B7B6F] font-bold uppercase tracking-wider">Placement Rate</p>
             <div className="flex items-baseline space-x-1.5 mt-0.5">
-              <h3 className="text-2xl font-bold text-stone-900">{overallPlacementRate}%</h3>
-              <span className="text-[11px] text-stone-500">({totalPlaced}/{totalEligible})</span>
+              <h3 className="text-2xl font-bold text-[#1C1A1A]">{overallPlacementRate}%</h3>
+              <span className="text-[11px] text-[#5E544A]">({totalPlaced}/{totalEligible})</span>
             </div>
           </div>
         </div>
         
-        <div className="bg-white p-5 rounded-2xl border border-stone-200 shadow-card flex items-center space-x-4">
-          <div className="p-3 bg-orange-50 text-orange-600 rounded-xl"><TrendingUp size={22} /></div>
+        <div className="bg-white p-5 rounded-2xl border border-[#E3D8C4] shadow-card flex items-center space-x-4">
+          <div className="p-3 bg-[#F1E9D8] text-[#8B1A1A] rounded-xl"><TrendingUp size={22} /></div>
           <div>
-            <p className="text-xs text-stone-400 font-bold uppercase tracking-wider">Average CTC</p>
-            <h3 className="text-2xl font-bold text-stone-900 mt-0.5">₹{stats?.averageCTC ? stats.averageCTC.toFixed(1) : '12.4'} LPA</h3>
+            <p className="text-xs text-[#8B7B6F] font-bold uppercase tracking-wider">Average CTC</p>
+            <h3 className="text-2xl font-bold text-[#1C1A1A] mt-0.5">₹{stats?.averageCTC ? stats.averageCTC.toFixed(1) : '0'} LPA</h3>
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-stone-200 shadow-card flex items-center space-x-4">
-          <div className="p-3 bg-green-50 text-green-600 rounded-xl"><Briefcase size={22} /></div>
+        <div className="bg-white p-5 rounded-2xl border border-[#E3D8C4] shadow-card flex items-center space-x-4">
+          <div className="p-3 bg-[#F1E9D8] text-[#4A7C59] rounded-xl"><Briefcase size={22} /></div>
           <div>
-            <p className="text-xs text-stone-400 font-bold uppercase tracking-wider">Median CTC</p>
-            <h3 className="text-2xl font-bold text-stone-900 mt-0.5">₹10.5 LPA</h3>
+            <p className="text-xs text-[#8B7B6F] font-bold uppercase tracking-wider">Median CTC</p>
+            <h3 className="text-2xl font-bold text-[#1C1A1A] mt-0.5">₹{stats?.medianCTC ? stats.medianCTC.toFixed(1) : '0'} LPA</h3>
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-stone-200 shadow-card flex items-center space-x-4">
-          <div className="p-3 bg-purple-50 text-purple-600 rounded-xl"><Award size={22} /></div>
+        <div className="bg-white p-5 rounded-2xl border border-[#E3D8C4] shadow-card flex items-center space-x-4">
+          <div className="p-3 bg-[#F1E9D8] text-[#C8A243] rounded-xl"><Award size={22} /></div>
           <div>
-            <p className="text-xs text-stone-400 font-bold uppercase tracking-wider">Highest Domestic</p>
-            <h3 className="text-2xl font-bold text-stone-900 mt-0.5">₹{stats?.highestCTC || 52}.0 LPA</h3>
+            <p className="text-xs text-[#8B7B6F] font-bold uppercase tracking-wider">Highest Domestic</p>
+            <h3 className="text-2xl font-bold text-[#1C1A1A] mt-0.5">₹{stats?.highestCTC || 0} LPA</h3>
           </div>
         </div>
       </div>
 
+      {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column - Branch Report Table */}
+        {/* Left 2 Cols: Table & CTC Distribution */}
         <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white p-5 rounded-2xl border border-stone-200 shadow-card overflow-hidden">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-bold text-stone-900 flex items-center gap-2">
-                <Building size={16} className="text-orange-500" /> Branch-wise Placement Summary
-              </h2>
-              <span className="text-[11px] text-stone-400 font-medium">Click columns to sort</span>
+          {/* Branch-wise Table */}
+          <div className="bg-white rounded-2xl border border-[#E3D8C4] shadow-card overflow-hidden">
+            <div className="p-5 border-b border-[#E3D8C4] flex items-center justify-between bg-[#F8F5EC]">
+              <h2 className="text-sm font-bold text-[#1C1A1A]">Branch-wise Placement Statistics</h2>
+              <span className="text-[11px] text-[#8B7B6F] font-semibold">Updated Session {academicYearStr}</span>
             </div>
+
             <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="border-b border-stone-100 bg-stone-50/70">
-                    <th className="py-2.5 px-3 text-[11px] font-bold text-stone-500 uppercase cursor-pointer hover:text-stone-800" onClick={() => requestSort('branch')}>
-                      Branch {sortConfig?.key === 'branch' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+              <table className="w-full text-left text-xs">
+                <thead className="bg-[#F8F5EC] border-b border-[#E3D8C4] text-[#5E544A] uppercase text-[10px]">
+                  <tr>
+                    <th onClick={() => requestSort('branch')} className="py-3 px-4 font-bold cursor-pointer hover:text-[#1C1A1A]">
+                      Branch {sortConfig?.key === 'branch' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}
                     </th>
-                    <th className="py-2.5 px-3 text-[11px] font-bold text-stone-500 uppercase cursor-pointer hover:text-stone-800" onClick={() => requestSort('eligible')}>
-                      Eligible {sortConfig?.key === 'eligible' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                    <th onClick={() => requestSort('eligible')} className="py-3 px-4 font-bold text-center cursor-pointer hover:text-[#1C1A1A]">
+                      Eligible {sortConfig?.key === 'eligible' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}
                     </th>
-                    <th className="py-2.5 px-3 text-[11px] font-bold text-stone-500 uppercase cursor-pointer hover:text-stone-800" onClick={() => requestSort('placed')}>
-                      Placed {sortConfig?.key === 'placed' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                    <th onClick={() => requestSort('placed')} className="py-3 px-4 font-bold text-center cursor-pointer hover:text-[#1C1A1A]">
+                      Placed {sortConfig?.key === 'placed' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}
                     </th>
-                    <th className="py-2.5 px-3 text-[11px] font-bold text-stone-500 uppercase cursor-pointer hover:text-stone-800" onClick={() => requestSort('placedPercentage')}>
-                      Placed % {sortConfig?.key === 'placedPercentage' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                    <th onClick={() => requestSort('placedPercentage')} className="py-3 px-4 font-bold text-center cursor-pointer hover:text-[#1C1A1A]">
+                      Placement % {sortConfig?.key === 'placedPercentage' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}
                     </th>
-                    <th className="py-2.5 px-3 text-[11px] font-bold text-stone-500 uppercase cursor-pointer hover:text-stone-800" onClick={() => requestSort('avgCTC')}>
-                      Avg CTC {sortConfig?.key === 'avgCTC' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                    <th onClick={() => requestSort('avgCTC')} className="py-3 px-4 font-bold text-center cursor-pointer hover:text-[#1C1A1A]">
+                      Avg CTC
                     </th>
-                    <th className="py-2.5 px-3 text-[11px] font-bold text-stone-500 uppercase cursor-pointer hover:text-stone-800" onClick={() => requestSort('highestCTC')}>
-                      Highest {sortConfig?.key === 'highestCTC' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                    <th onClick={() => requestSort('medianCTC')} className="py-3 px-4 font-bold text-center cursor-pointer hover:text-[#1C1A1A]">
+                      Median CTC
+                    </th>
+                    <th onClick={() => requestSort('highestCTC')} className="py-3 px-4 font-bold text-center cursor-pointer hover:text-[#1C1A1A]">
+                      Highest CTC
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-stone-100 text-xs">
-                  {sortedBranchStats.map((row, idx) => {
-                    const pct = row.placedPercentage || ((row.placed / Math.max(row.eligible, 1)) * 100).toFixed(1);
-                    return (
-                      <tr key={idx} className="hover:bg-stone-50/80 transition-colors">
-                        <td className="py-3 px-3 font-semibold text-stone-900">{row.branch}</td>
-                        <td className="py-3 px-3 text-stone-600">{row.eligible}</td>
-                        <td className="py-3 px-3 text-stone-800 font-semibold">{row.placed}</td>
-                        <td className="py-3 px-3">
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-green-100 text-green-800">
-                            {pct}%
-                          </span>
-                        </td>
-                        <td className="py-3 px-3 text-orange-600 font-bold">₹{row.avgCTC}L</td>
-                        <td className="py-3 px-3 text-purple-700 font-bold">₹{row.highestCTC}L</td>
-                      </tr>
-                    );
-                  })}
+                <tbody className="divide-y divide-[#E3D8C4]">
+                  {sortedBranchStats.map((b) => (
+                    <tr key={b.branch} className="hover:bg-[#F8F5EC] transition-colors">
+                      <td className="py-3.5 px-4 font-bold text-[#1C1A1A]">{b.branch}</td>
+                      <td className="py-3.5 px-4 text-center font-semibold text-[#5E544A]">{b.eligible}</td>
+                      <td className="py-3.5 px-4 text-center font-bold text-[#1C1A1A]">{b.placed}</td>
+                      <td className="py-3.5 px-4 text-center">
+                        <span className="font-extrabold text-[#4A7C59] bg-[#F1E9D8] border border-[#E3D8C4] px-2 py-0.5 rounded-full text-[10px]">
+                          {b.placedPercentage ?? 0}%
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 text-center font-semibold text-[#1C1A1A]">₹{b.avgCTC} LPA</td>
+                      <td className="py-3.5 px-4 text-center font-semibold text-[#1C1A1A]">₹{b.medianCTC} LPA</td>
+                      <td className="py-3.5 px-4 text-center font-extrabold text-[#8B1A1A]">₹{b.highestCTC} LPA</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
           </div>
 
-          {/* Monthly Timeline Chart */}
-          <div className="bg-white p-5 rounded-2xl border border-stone-200 shadow-card">
-            <h2 className="text-sm font-bold text-stone-900 mb-4 flex items-center gap-2">
-              <TrendingUp size={16} className="text-orange-500" /> Placement Offers Timeline
-            </h2>
-            <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={monthlyOffers}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#F5F5F4" />
-                <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} />
-                <RechartsTooltip />
-                <Line type="monotone" dataKey="offers" stroke="#F97316" strokeWidth={2.5} dot={{ fill: '#F97316', r: 4 }} />
-              </LineChart>
+          {/* Salary Bands Bar Chart */}
+          <div className="bg-white p-5 rounded-2xl border border-[#E3D8C4] shadow-card space-y-4">
+            <h2 className="text-sm font-bold text-[#1C1A1A]">CTC Distribution Bands (Class of {currentYear})</h2>
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={ctcBands}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#F1E9D8" />
+                <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#5E544A' }} stroke="#E3D8C4" />
+                <YAxis tick={{ fontSize: 11, fill: '#5E544A' }} stroke="#E3D8C4" />
+                <RechartsTooltip contentStyle={{ borderRadius: 12, fontSize: 12, border: '1px solid #E3D8C4', backgroundColor: '#FFFFFF', color: '#1C1A1A' }} />
+                <Bar dataKey="count" fill="#8B1A1A" radius={[6, 6, 0, 0]} />
+              </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Right Column - CTC Distribution & NIRF Builder */}
+        {/* Right Col: Timeline & Export Card */}
         <div className="space-y-6">
-          <div className="bg-white p-5 rounded-2xl border border-stone-200 shadow-card">
-            <h2 className="text-sm font-bold text-stone-900 mb-3">Salary Package Distribution</h2>
-            <ResponsiveContainer width="100%" height={190}>
-              <BarChart data={ctcBands}>
-                <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-                <YAxis tick={{ fontSize: 10 }} />
-                <RechartsTooltip />
-                <Bar dataKey="count" fill="#F97316" radius={[4, 4, 0, 0]} />
-              </BarChart>
+          {/* Monthly Trend Chart */}
+          <div className="bg-white p-5 rounded-2xl border border-[#E3D8C4] shadow-card space-y-4">
+            <h2 className="text-sm font-bold text-[#1C1A1A]">Monthly Placement Timeline</h2>
+            <ResponsiveContainer width="100%" height={200}>
+              <LineChart data={monthlyOffers}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#F1E9D8" />
+                <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#5E544A' }} stroke="#E3D8C4" />
+                <YAxis tick={{ fontSize: 10, fill: '#5E544A' }} stroke="#E3D8C4" />
+                <RechartsTooltip contentStyle={{ borderRadius: 12, fontSize: 12, border: '1px solid #E3D8C4', backgroundColor: '#FFFFFF', color: '#1C1A1A' }} />
+                <Line type="monotone" dataKey="offers" stroke="#8B1A1A" strokeWidth={2.5} dot={{ r: 4, fill: '#8B1A1A' }} />
+              </LineChart>
             </ResponsiveContainer>
           </div>
 
-          <div className="bg-orange-50/60 p-5 rounded-2xl border border-orange-200 shadow-xs space-y-3">
-            <div className="flex items-center gap-2 text-orange-950 font-bold text-xs">
-              <ShieldCheck size={16} className="text-orange-600" />
+          {/* Compiled Dossier Action Box */}
+          <div className="bg-[#F1E9D8] p-5 rounded-2xl border border-[#E3D8C4] space-y-3">
+            <div className="flex items-center gap-2 text-xs font-bold text-[#1C1A1A]">
+              <ShieldCheck className="text-[#8B1A1A]" size={18} />
               <span>NIRF Official Placement Dossier</span>
             </div>
-            <p className="text-[11px] text-stone-600 leading-relaxed">
-              Compile institutional placement records compliant with MHRD/NIRF parameter guidelines for the Class of 2024.
+            <p className="text-[11px] text-[#5E544A] leading-relaxed font-medium">
+              Compile institutional placement records compliant with MHRD/NIRF parameter guidelines for Academic Year {academicYearStr}.
             </p>
             <button
               onClick={() => setShowCompiledModal(true)}
-              className="w-full py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5"
+              className="w-full py-2.5 bg-[#8B1A1A] hover:bg-[#A63030] text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 active:scale-[0.98]"
             >
               <FileDown size={14} />
               Open Compiled NIRF Report
@@ -251,124 +326,123 @@ export default function ReportsAnalyticsPage() {
         </div>
       </div>
 
-      {/* COMPILED OFFICIAL NIRF REPORT MODAL (Requirement 7) */}
+      {/* COMPILED OFFICIAL NIRF REPORT MODAL */}
       {showCompiledModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto animate-fade-in">
-          <div className="relative w-full max-w-4xl bg-white rounded-2xl shadow-2xl border border-stone-300 my-8 overflow-hidden animate-scale-in">
-            {/* Modal Controls Topbar */}
-            <div className="p-4 bg-stone-900 text-white flex items-center justify-between print:hidden">
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto animate-fade-in select-none">
+          <div className="relative w-full max-w-4xl bg-white rounded-2xl shadow-2xl border border-[#E3D8C4] my-8 overflow-hidden animate-scale-in">
+            {/* Modal Controls Topbar (Excluded from Print) */}
+            <div className="p-4 bg-[#1C1A1A] text-white flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <ShieldCheck className="text-orange-400" size={18} />
+                <ShieldCheck className="text-[#C8A243]" size={18} />
                 <span className="font-bold text-xs">Official Institutional Dossier — Compiled NIRF Report</span>
               </div>
               <div className="flex items-center gap-3">
                 <button
                   onClick={handlePrintCompiled}
-                  className="px-4 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm"
+                  className="px-4 py-1.5 bg-[#8B1A1A] hover:bg-[#A63030] text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs"
                 >
                   <Printer size={14} />
                   Print / Save as PDF
                 </button>
                 <button
                   onClick={() => setShowCompiledModal(false)}
-                  className="text-stone-400 hover:text-white p-1"
+                  className="text-[#8B7B6F] hover:text-white p-1"
                 >
                   <X size={18} />
                 </button>
               </div>
             </div>
 
-            {/* Compiled Document Body (Clean Academic Printable Format) */}
-            <div className="p-8 sm:p-12 text-stone-900 font-serif bg-white max-h-[80vh] overflow-y-auto print:max-h-none print:p-0">
+            {/* Compiled Document Body (Target for Dedicated Print) */}
+            <div id="nirf-printable-report" className="p-8 sm:p-12 text-[#1C1A1A] bg-white max-h-[80vh] overflow-y-auto">
               {/* Header Letterhead */}
-              <div className="border-b-2 border-stone-900 pb-4 mb-6 text-center space-y-1">
+              <div className="border-b-2 pb-4 mb-6 text-center space-y-1">
                 <h1 className="text-xl font-bold tracking-tight uppercase">Guru Gobind Singh Indraprastha University</h1>
-                <p className="text-xs text-stone-600 font-sans">Sector 16C, Dwarka, New Delhi — 110078 | Training & Placement Cell</p>
-                <h2 className="text-sm font-bold text-orange-700 font-sans tracking-wide uppercase pt-2">
-                  Official NIRF Placement Assessment Dossier · Academic Year 2023–24
+                <h2 className="text-sm font-bold text-accent tracking-wide uppercase pt-2">
+                  Official NIRF Placement Assessment Dossier · Academic Year {academicYearStr}
                 </h2>
               </div>
 
               {/* Meta Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-3 bg-stone-50 border border-stone-200 rounded-lg text-xs font-sans mb-6">
+              <div className="meta-box grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs mb-6">
                 <div>
-                  <span className="text-stone-500 block text-[10px] uppercase font-bold">Document ID</span>
-                  <span className="font-bold font-mono">GGSIPU/TPC/NIRF-2024</span>
+                  <span className="text-dim block text-[10px] uppercase font-bold">Document ID</span>
+                  <span className="font-bold font-mono">{nirfDocId}</span>
                 </div>
                 <div>
-                  <span className="text-stone-500 block text-[10px] uppercase font-bold">Graduation Cohort</span>
-                  <span className="font-bold">UG (4 Years) — 2024</span>
+                  <span className="text-dim block text-[10px] uppercase font-bold">Graduation Cohort</span>
+                  <span className="font-bold">UG (4 Years) — {currentYear}</span>
                 </div>
                 <div>
-                  <span className="text-stone-500 block text-[10px] uppercase font-bold">Accreditation Cycle</span>
-                  <span className="font-bold">NIRF Ranking 2025</span>
+                  <span className="text-dim block text-[10px] uppercase font-bold">Accreditation Cycle</span>
+                  <span className="font-bold">{nirfAccreditationCycle}</span>
                 </div>
                 <div>
-                  <span className="text-stone-500 block text-[10px] uppercase font-bold">Certified Date</span>
+                  <span className="text-dim block text-[10px] uppercase font-bold">Certified Date</span>
                   <span className="font-bold">{new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
                 </div>
               </div>
 
               {/* Section 1: Executive KPI Summary */}
-              <div className="mb-6 font-sans">
-                <h3 className="font-bold text-xs uppercase tracking-wider text-stone-700 border-b border-stone-200 pb-1 mb-3">
+              <div className="mb-6">
+                <h3 className="font-bold text-xs uppercase tracking-wider text-muted border-b pb-1 mb-3">
                   1. Executive Placement Overview
                 </h3>
                 <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 text-center">
-                  <div className="p-2 border border-stone-200 rounded">
-                    <p className="text-[10px] text-stone-500">Graduating</p>
-                    <p className="font-bold text-sm">{totalEligible}</p>
+                  <div className="kpi-box">
+                    <p className="text-[10px] text-dim font-semibold">Graduating</p>
+                    <p className="font-bold text-sm text-[#1C1A1A]">{totalEligible}</p>
                   </div>
-                  <div className="p-2 border border-stone-200 rounded">
-                    <p className="text-[10px] text-stone-500">Placed</p>
-                    <p className="font-bold text-sm text-green-700">{totalPlaced}</p>
+                  <div className="kpi-box">
+                    <p className="text-[10px] text-dim font-semibold">Placed</p>
+                    <p className="font-bold text-sm text-success">{totalPlaced}</p>
                   </div>
-                  <div className="p-2 border border-stone-200 rounded bg-orange-50/50 border-orange-200">
-                    <p className="text-[10px] text-orange-700 font-semibold">Placement Rate</p>
-                    <p className="font-bold text-sm text-orange-700">{overallPlacementRate}%</p>
+                  <div className="kpi-box bg-highlight">
+                    <p className="text-[10px] text-accent font-bold">Placement Rate</p>
+                    <p className="font-bold text-sm text-accent">{overallPlacementRate}%</p>
                   </div>
-                  <div className="p-2 border border-stone-200 rounded">
-                    <p className="text-[10px] text-stone-500">Median CTC</p>
-                    <p className="font-bold text-sm">₹10.5L</p>
+                  <div className="kpi-box">
+                    <p className="text-[10px] text-dim font-semibold">Median CTC</p>
+                    <p className="font-bold text-sm text-[#1C1A1A]">₹{stats?.medianCTC ? stats.medianCTC.toFixed(1) : '0'}L</p>
                   </div>
-                  <div className="p-2 border border-stone-200 rounded">
-                    <p className="text-[10px] text-stone-500">Average CTC</p>
-                    <p className="font-bold text-sm">₹12.4L</p>
+                  <div className="kpi-box">
+                    <p className="text-[10px] text-dim font-semibold">Average CTC</p>
+                    <p className="font-bold text-sm text-[#1C1A1A]">₹{stats?.averageCTC ? stats.averageCTC.toFixed(1) : '0'}L</p>
                   </div>
-                  <div className="p-2 border border-stone-200 rounded bg-purple-50/50 border-purple-200">
-                    <p className="text-[10px] text-purple-700 font-semibold">Highest Domestic</p>
-                    <p className="font-bold text-sm text-purple-800">₹52.0L</p>
+                  <div className="kpi-box bg-highlight">
+                    <p className="text-[10px] text-accent font-bold">Highest Domestic</p>
+                    <p className="font-bold text-sm text-accent">₹{stats?.highestCTC || 0}.0L</p>
                   </div>
                 </div>
               </div>
 
               {/* Section 2: Program-Wise Breakdown */}
-              <div className="mb-6 font-sans">
-                <h3 className="font-bold text-xs uppercase tracking-wider text-stone-700 border-b border-stone-200 pb-1 mb-3">
+              <div className="mb-6">
+                <h3 className="font-bold text-xs uppercase tracking-wider text-muted border-b pb-1 mb-3">
                   2. Discipline-Wise Placement & Median Remuneration Statistics
                 </h3>
-                <table className="w-full border-collapse border border-stone-300 text-xs">
-                  <thead className="bg-stone-100">
+                <table>
+                  <thead>
                     <tr>
-                      <th className="border border-stone-300 p-2 text-left">Academic Discipline</th>
-                      <th className="border border-stone-300 p-2 text-center">Graduating Students</th>
-                      <th className="border border-stone-300 p-2 text-center">Placed Students</th>
-                      <th className="border border-stone-300 p-2 text-center">Placement (%)</th>
-                      <th className="border border-stone-300 p-2 text-center">Median Package</th>
-                      <th className="border border-stone-300 p-2 text-center">Max Package</th>
+                      <th className="p-2 text-left">Academic Discipline</th>
+                      <th className="p-2 text-center">Graduating Students</th>
+                      <th className="p-2 text-center">Placed Students</th>
+                      <th className="p-2 text-center">Placement (%)</th>
+                      <th className="p-2 text-center">Median Package</th>
+                      <th className="p-2 text-center">Max Package</th>
                     </tr>
                   </thead>
                   <tbody>
                     {branchStats.map((b, i) => {
                       const pct = b.placedPercentage || ((b.placed / Math.max(b.eligible, 1)) * 100).toFixed(1);
                       return (
-                        <tr key={i} className="even:bg-stone-50/60">
-                          <td className="border border-stone-300 p-2 font-medium">{b.branch}</td>
-                          <td className="border border-stone-300 p-2 text-center">{b.eligible}</td>
-                          <td className="border border-stone-300 p-2 text-center font-semibold">{b.placed}</td>
-                          <td className="border border-stone-300 p-2 text-center font-bold text-green-700">{pct}%</td>
-                          <td className="border border-stone-300 p-2 text-center font-mono font-semibold">₹{b.medianCTC} LPA</td>
-                          <td className="border border-stone-300 p-2 text-center font-mono font-bold text-purple-700">₹{b.highestCTC} LPA</td>
+                        <tr key={i}>
+                          <td className="p-2 font-bold text-left">{b.branch}</td>
+                          <td className="p-2 text-center text-muted">{b.eligible}</td>
+                          <td className="p-2 text-center font-bold">{b.placed}</td>
+                          <td className="p-2 text-center font-bold text-success">{pct}%</td>
+                          <td className="p-2 text-center font-mono font-bold">₹{b.medianCTC} LPA</td>
+                          <td className="p-2 text-center font-mono font-bold text-accent">₹{b.highestCTC} LPA</td>
                         </tr>
                       );
                     })}
@@ -376,21 +450,15 @@ export default function ReportsAnalyticsPage() {
                 </table>
               </div>
 
-              {/* Section 3: Institutional Signatures & Verification */}
-              <div className="mt-10 pt-6 border-t-2 border-stone-300 grid grid-cols-2 gap-8 text-xs font-sans">
+              {/* Section 3: Institutional Signatures */}
+              <div className="mt-12 pt-6 border-b grid grid-cols-2 gap-8 text-xs">
                 <div>
-                  <p className="text-stone-500 mb-8 font-semibold">Prepared & Verified By:</p>
-                  <p className="font-bold text-stone-900 border-t border-stone-400 pt-1 inline-block min-w-44">
-                    Dr. Ramesh Kumar
-                  </p>
-                  <p className="text-[11px] text-stone-500">Chief Coordinator, Training & Placement Cell</p>
+                  <p className="text-[#1C1A1A] mb-12 font-bold">Prepared & Verified By:</p>
+                  <div className="border-t border-[#8B7B6F] pt-1 inline-block min-w-48" />
                 </div>
                 <div className="text-right">
-                  <p className="text-stone-500 mb-8 font-semibold">Approved for Submission:</p>
-                  <p className="font-bold text-stone-900 border-t border-stone-400 pt-1 inline-block min-w-44 text-right">
-                    Prof. (Dr.) A. K. Sharma
-                  </p>
-                  <p className="text-[11px] text-stone-500">Dean / Registrar, GGSIPU</p>
+                  <p className="text-[#1C1A1A] mb-12 font-bold">Approved for Submission:</p>
+                  <div className="border-t border-[#8B7B6F] pt-1 inline-block min-w-48 text-right" />
                 </div>
               </div>
             </div>

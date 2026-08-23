@@ -11,6 +11,9 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   const pathname = usePathname();
   const [showNotifications, setShowNotifications] = useState(false);
 
+  const { data: userData } = useSWR<any>('/api/auth/me', fetcher);
+  const { data: studentData } = useSWR<any>('/api/students/me', fetcher);
+
   const { data: notifData } = useSWR<{ notifications: any[]; unreadCount: number }>(
     '/api/notifications', 
     fetcher, 
@@ -20,10 +23,12 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   const notifications = notifData?.notifications || [];
   const unreadCount = notifications.filter(n => n.unread).length;
 
+  const studentName = studentData?.student?.name || userData?.user?.name || 'Student';
+  const initials = studentName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() || 'ST';
+
   const handleDeleteNotification = async (e: React.MouseEvent, notifId: string) => {
     e.preventDefault();
     e.stopPropagation();
-    // Instant local removal
     mutate('/api/notifications', (current: any) => ({
       ...current,
       notifications: (current?.notifications || []).filter((n: any) => n.id !== notifId),
@@ -39,7 +44,6 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   const handleClearAllNotifications = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    // Instant local clear
     mutate('/api/notifications', { notifications: [], unreadCount: 0 }, false);
 
     try {
@@ -65,33 +69,33 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   };
 
   return (
-    <div className="min-h-screen bg-[#FFFAF6]">
-      {/* Topbar with z-10 and select-none so modals/drawers render above it */}
-      <header className="bg-white border-b border-stone-200 sticky top-0 z-10 shadow-xs select-none">
+    <div className="min-h-screen bg-[#F8F5EC] text-[#1C1A1A]">
+      {/* Topbar */}
+      <header className="bg-white border-b border-[#E3D8C4] sticky top-0 z-10 shadow-xs select-none">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Left Logo */}
             <div className="flex-shrink-0 flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-orange-100 border border-orange-200 flex items-center justify-center text-orange-600">
+              <div className="w-8 h-8 rounded-xl bg-[#F1E9D8] border border-[#E3D8C4] flex items-center justify-center text-[#8B1A1A]">
                 <GraduationCap size={18} />
               </div>
-              <span className="font-bold text-base text-stone-900">
-                GGSIPU <span className="text-orange-500 font-semibold">Placement Cell</span>
+              <span className="font-bold text-base text-[#1C1A1A]">
+                GGSIPU <span className="text-[#8B1A1A] font-bold">Placement Cell</span>
               </span>
             </div>
 
             {/* Center Navigation */}
-            <nav className="hidden md:flex space-x-2">
+            <nav className="hidden md:flex space-x-1.5">
               {navItems.map((item) => {
                 const isActive = pathname === item.href || (item.href !== '/student' && pathname.startsWith(item.href));
                 return (
                   <Link
                     key={item.name}
                     href={item.href}
-                    className={`inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    className={`inline-flex items-center px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
                       isActive
-                        ? 'bg-orange-50 text-orange-600 border border-orange-200 shadow-xs'
-                        : 'text-stone-600 hover:text-stone-900 hover:bg-stone-50'
+                        ? 'bg-[#F1E9D8] text-[#8B1A1A] border border-[#E3D8C4] shadow-xs'
+                        : 'text-[#5E544A] hover:text-[#1C1A1A] hover:bg-[#F8F5EC]'
                     }`}
                   >
                     {item.name}
@@ -100,82 +104,79 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
               })}
             </nav>
 
-            {/* Right Actions */}
-            <div className="flex items-center space-x-3">
-              {/* Notification Bell (Requirement 2) */}
+            {/* Right Controls */}
+            <div className="flex items-center gap-3">
+              {/* Notification Bell with Dropdown */}
               <div className="relative">
                 <button
                   onClick={() => setShowNotifications(!showNotifications)}
-                  className="relative p-2 rounded-xl border border-stone-200 text-stone-500 hover:bg-stone-50 hover:text-stone-700 transition-all"
+                  className={`relative p-2 rounded-xl border transition-all ${
+                    showNotifications 
+                      ? 'bg-[#F1E9D8] text-[#8B1A1A] border-[#E3D8C4]' 
+                      : 'text-[#5E544A] hover:text-[#1C1A1A] hover:bg-[#F8F5EC] border-[#E3D8C4]'
+                  }`}
                   title="Notifications"
                 >
-                  <Bell size={15} />
+                  <Bell size={18} />
                   {unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-orange-500 text-white text-[10px] font-bold flex items-center justify-center ring-2 ring-white">
+                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#8B1A1A] text-white text-[10px] font-bold rounded-full flex items-center justify-center ring-2 ring-white">
                       {unreadCount}
                     </span>
                   )}
                 </button>
 
+                {/* Notifications Dropdown */}
                 {showNotifications && (
-                  <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white border border-stone-200 rounded-2xl shadow-xl z-50 overflow-hidden animate-scale-in text-xs">
-                    <div className="p-4 border-b border-stone-100 flex items-center justify-between bg-stone-50/70">
-                      <div className="flex items-center gap-1.5 font-bold text-stone-900">
-                        <Bell size={13} className="text-orange-500" />
-                        <span>Notifications</span>
-                      </div>
+                  <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white border border-[#E3D8C4] rounded-2xl shadow-xl z-50 overflow-hidden animate-scale-in">
+                    <div className="p-4 border-b border-[#E3D8C4] flex items-center justify-between bg-[#F8F5EC]">
+                      <h3 className="font-bold text-[#1C1A1A] text-xs">Notifications</h3>
                       <div className="flex items-center gap-2">
-                        {notifications.length > 0 && (
-                          <button
-                            onClick={handleClearAllNotifications}
-                            className="text-[11px] text-stone-500 hover:text-red-600 font-semibold"
-                          >
-                            Clear All
-                          </button>
-                        )}
-                        <button onClick={() => setShowNotifications(false)} className="text-stone-400 hover:text-stone-600">
+                        <button 
+                          onClick={handleClearAllNotifications}
+                          className="text-[11px] text-[#8B7B6F] hover:text-[#C85555] font-semibold flex items-center gap-1"
+                        >
+                          <Trash2 size={12} />
+                          <span>Clear all</span>
+                        </button>
+                        <button 
+                          onClick={() => setShowNotifications(false)}
+                          className="text-[#8B7B6F] hover:text-[#1C1A1A] ml-1"
+                        >
                           <X size={14} />
                         </button>
                       </div>
                     </div>
 
-                    <div className="max-h-80 overflow-y-auto divide-y divide-stone-100">
+                    <div className="max-h-80 overflow-y-auto divide-y divide-[#E3D8C4]">
                       {notifications.length > 0 ? (
-                        notifications.map((n: any) => (
+                        notifications.map(n => (
                           <div
                             key={n.id}
-                            className="p-3.5 hover:bg-stone-50 flex items-start justify-between gap-3 group transition-colors"
+                            className={`p-3.5 hover:bg-[#F8F5EC] transition-colors flex items-start gap-3 relative group ${
+                              n.unread ? 'bg-[#F1E9D8]/50' : ''
+                            }`}
                           >
-                            <Link
-                              href={n.link || '/student'}
-                              onClick={() => setShowNotifications(false)}
-                              className="flex items-start gap-3 flex-1 min-w-0"
-                            >
-                              <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-xs ${
-                                n.type === 'reminder' ? 'bg-orange-500 text-white font-bold' :
-                                n.type === 'offer' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-600'
-                              }`}>
-                                {n.type === 'reminder' ? '⚡' : n.type === 'offer' ? <Award size={14} /> : <AlertCircle size={14} />}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="font-bold text-stone-900">{n.title}</p>
-                                <p className="text-[11px] text-stone-500 mt-0.5 leading-relaxed">{n.desc}</p>
-                                <p className="text-[10px] text-orange-600 font-semibold mt-1">{n.time}</p>
-                              </div>
-                            </Link>
+                            <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 text-xs bg-[#F1E9D8] text-[#8B1A1A]`}>
+                              {n.type === 'offer' ? <Award size={14} className="text-[#4A7C59]" /> : <AlertCircle size={14} />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-bold text-[#1C1A1A] truncate">{n.title}</p>
+                              <p className="text-[11px] text-[#5E544A] mt-0.5 leading-relaxed">{n.desc}</p>
+                              <p className="text-[10px] text-[#8B7B6F] mt-1">{n.time}</p>
+                            </div>
 
                             <button
                               onClick={(e) => handleDeleteNotification(e, n.id)}
-                              className="p-1.5 text-stone-300 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors shrink-0"
-                              title="Delete notification"
+                              className="opacity-0 group-hover:opacity-100 p-1 text-[#8B7B6F] hover:text-[#C85555] hover:bg-[#F8F5EC] rounded-lg transition-all"
+                              title="Delete"
                             >
-                              <Trash2 size={13} />
+                              <Trash2 size={12} />
                             </button>
                           </div>
                         ))
                       ) : (
-                        <div className="py-8 text-center text-xs text-stone-400">
-                          No notifications.
+                        <div className="py-8 text-center text-xs text-[#8B7B6F]">
+                          No active notifications.
                         </div>
                       )}
                     </div>
@@ -183,27 +184,30 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
                 )}
               </div>
 
-              <button 
-                onClick={handleLogout}
-                className="flex items-center gap-1 text-xs font-medium text-stone-500 hover:text-red-600 px-3 py-1.5 rounded-lg hover:bg-stone-50 transition-colors border border-stone-200"
+              {/* User Avatar with dynamic initials */}
+              <Link
+                href="/student/profile"
+                className="w-8 h-8 rounded-xl bg-[#F1E9D8] flex items-center justify-center text-[#8B1A1A] font-bold text-xs border border-[#E3D8C4] hover:border-[#8B1A1A] transition-colors"
+                title={`Profile (${studentName})`}
               >
-                <LogOut size={13} />
-                Logout
-              </button>
-
-              <Link 
-                href="/student/profile" 
-                className="h-8 w-8 rounded-full bg-orange-100 flex items-center justify-center border border-orange-200 text-orange-700 font-bold text-xs hover:ring-2 hover:ring-orange-300 transition-all"
-              >
-                RM
+                {initials}
               </Link>
+
+              {/* Logout Button */}
+              <button
+                onClick={handleLogout}
+                className="p-2 text-[#5E544A] hover:text-[#C85555] hover:bg-[#F8F5EC] rounded-xl transition-colors border border-[#E3D8C4]"
+                title="Logout"
+              >
+                <LogOut size={16} />
+              </button>
             </div>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
         {children}
       </main>
     </div>

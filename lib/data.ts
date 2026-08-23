@@ -211,9 +211,17 @@ export function isStudentEligible(
   if (student.class12 < drive.eligibility.minClass12) {
     reasons.push(`Class 12th marks (${student.class12}%) below minimum ${drive.eligibility.minClass12}%`);
   }
-  if (drive.eligibility.offerPolicy === "one_offer" && student.placementStatus === "placed" && !student.dreamOfferEligible) {
-    reasons.push("Already placed — blocked under One-Offer Policy");
+
+  // 2X Initial Offer Placement Policy:
+  // Once a student receives/accepts an offer, they can only participate in drives offering >= 2X of initial package
+  if (student.placementStatus === "placed") {
+    const initialOfferCTC = 12.0; // Initial placement benchmark
+    const minRequiredCTC = initialOfferCTC * 2; // 24.0 LPA
+    if (drive.ctc < minRequiredCTC) {
+      reasons.push(`Placed at ₹${initialOfferCTC} LPA. Gated under 2X Placement Policy (only eligible for drives ≥ ₹${minRequiredCTC} LPA)`);
+    }
   }
+
   if (drive.eligibility.offerPolicy === "dream_offer" && !student.dreamOfferEligible) {
     reasons.push("Not eligible for Dream Offer tier (requires CGPA >= 8.5)");
   }

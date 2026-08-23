@@ -1,44 +1,38 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import useSWR, { mutate } from "swr";
 import { 
-  User, Mail, Phone, BookOpen, Award, Edit3, Camera, 
-  CheckCircle2, FileText, Star, Plus, Trash2, X, Check, Loader2, Sparkles, AlertCircle, Upload, ExternalLink
+  User, Mail, Phone, BookOpen, Award, Edit3, 
+  CheckCircle2, FileText, Star, Plus, Trash2, X, Check, Loader2, Sparkles, AlertCircle, Lock
 } from "lucide-react";
 import { fetcher } from "@/lib/api-client";
 
 export default function StudentProfilePage() {
-  const { data: studentData, isLoading } = useSWR<any>('/api/students/me', fetcher);
-  const { data: branchesData } = useSWR<{ branches: string[] }>('/api/branches', fetcher);
-
-  const availableBranches = branchesData?.branches || ['AI-DS', 'AI-ML', 'AR', 'IIOT'];
-  const gradYearOptions = [2027, 2028, 2029, 2030];
+  const { data: studentData, isLoading } = useSWR<any>('/api/students/me', fetcher, { refreshInterval: 2000 });
 
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Profile Fields
-  const [name, setName] = useState("Rohan Mehta");
-  const [rollNo, setRollNo] = useState("07114803121");
-  const [email, setEmail] = useState("rohan@ipu.ac.in");
-  const [phone, setPhone] = useState("+91 98112 34567");
-  const [bio, setBio] = useState("Final year AI-DS student passionate about full-stack development, cloud computing, and AI systems architecture.");
-  const [avatarUrl, setAvatarUrl] = useState<string>("");
-  const [resumeUrl, setResumeUrl] = useState<string>("");
-
-  // Academic Fields
+  // Student Identity Fields (READ-ONLY / Locked by University)
+  const [name, setName] = useState("");
+  const [rollNo, setRollNo] = useState("");
   const [branch, setBranch] = useState("AI-DS");
   const [graduationYear, setGraduationYear] = useState(2027);
-  const [cgpa, setCgpa] = useState("8.7");
+
+  // Editable Profile Fields
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [bio, setBio] = useState("");
+
+  // Academic Fields
+  const [cgpa, setCgpa] = useState("8.0");
   const [backlogs, setBacklogs] = useState(0);
-  const [class10, setClass10] = useState("91.0");
-  const [class12, setClass12] = useState("88.5");
+  const [class10, setClass10] = useState("85.0");
+  const [class12, setClass12] = useState("85.0");
 
   // Skills
-  const [skills, setSkills] = useState<string[]>([
-    "React.js", "Node.js", "Python", "PyTorch", "PostgreSQL", "TypeScript", "Docker", "REST APIs", "Git"
-  ]);
+  const [skills, setSkills] = useState<string[]>([]);
   const [newSkillInput, setNewSkillInput] = useState("");
 
   // Certifications
@@ -62,12 +56,6 @@ export default function StudentProfilePage() {
 
   const [activeTab, setActiveTab] = useState<"academic" | "skills" | "achievements">("academic");
 
-  // Cloudinary Upload States
-  const [uploadingResume, setUploadingResume] = useState(false);
-  const [uploadingAvatar, setUploadingAvatar] = useState(false);
-  const resumeInputRef = useRef<HTMLInputElement>(null);
-  const avatarInputRef = useRef<HTMLInputElement>(null);
-
   // Centered Popup State
   const [modalDialog, setModalDialog] = useState<{
     isOpen: boolean;
@@ -85,163 +73,153 @@ export default function StudentProfilePage() {
     setModalDialog({ isOpen: true, type, title, message });
   };
 
-  // Populate data from DB profile
+  const syncFromStudent = (s: any) => {
+    if (!s) return;
+    if (s.name) setName(s.name);
+    if (s.rollNo) setRollNo(s.rollNo);
+    if (s.user?.email || s.email) setEmail(s.user?.email || s.email);
+    if (s.phone) {
+      const rawDigits = String(s.phone).replace(/[^0-9]/g, '');
+      const tenDigits = rawDigits.length === 12 && rawDigits.startsWith('91') ? rawDigits.slice(2) : rawDigits;
+      setPhone(tenDigits);
+    } else {
+      setPhone('');
+    }
+    if (s.bio) setBio(s.bio);
+    if (s.branch) setBranch(s.branch);
+    if (s.graduationYear) setGraduationYear(s.graduationYear);
+    if (s.cgpa) setCgpa(String(s.cgpa));
+    if (s.backlogs !== undefined) setBacklogs(s.backlogs);
+    if (s.class10) setClass10(String(s.class10));
+    if (s.class12) setClass12(String(s.class12));
+    if (Array.isArray(s.skills)) setSkills(s.skills);
+  };
+
   useEffect(() => {
+    if (studentData?.student && !editing) {
+      syncFromStudent(studentData.student);
+    }
+  }, [studentData, editing]);
+
+  const handleCancelEdit = () => {
     if (studentData?.student) {
-      const s = studentData.student;
-      if (s.name) setName(s.name);
-      if (s.rollNo) setRollNo(s.rollNo);
-      if (s.user?.email || s.email) setEmail(s.user?.email || s.email);
-      if (s.phone) setPhone(s.phone);
-      if (s.branch) setBranch(s.branch);
-      if (s.graduationYear) setGraduationYear(s.graduationYear);
-      if (s.cgpa) setCgpa(String(s.cgpa));
-      if (s.backlogs !== undefined) setBacklogs(s.backlogs);
-      if (s.class10) setClass10(String(s.class10));
-      if (s.class12) setClass12(String(s.class12));
-      if (s.resumeUrl) setResumeUrl(s.resumeUrl);
-      if (Array.isArray(s.skills) && s.skills.length > 0) setSkills(s.skills);
+      syncFromStudent(studentData.student);
     }
-  }, [studentData]);
-
-  // Synchronize student updates to backend DB & trigger eligibility recalculation
-  const persistStudentData = async (overrides?: any) => {
-    try {
-      const payload = {
-        name,
-        phone,
-        branch,
-        graduationYear: Number(graduationYear),
-        cgpa: parseFloat(cgpa) || 8.0,
-        backlogs: Number(backlogs),
-        class10: parseFloat(class10) || 85,
-        class12: parseFloat(class12) || 85,
-        skills,
-        resumeUrl,
-        ...overrides,
-      };
-
-      await fetch('/api/students/me', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-        credentials: 'include'
-      });
-
-      // Recalculate eligible drives across all student views in real-time
-      await mutate('/api/students/me');
-      await mutate('/api/drives/eligible');
-      await mutate('/api/reports/stats');
-    } catch (e) {
-      console.error('Error persisting profile to database:', e);
-    }
+    setEditing(false);
   };
 
-  // Cloudinary File Upload Handlers
-  const handleResumeFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setUploadingResume(true);
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('folder', 'tpc-resumes');
-      formData.append('resource_type', 'auto');
-
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-        credentials: 'include'
-      });
-
-      if (!res.ok) throw new Error('Cloudinary upload failed');
-      const data = await res.json();
-      const uploadedUrl = data.url;
-
-      setResumeUrl(uploadedUrl);
-      await persistStudentData({ resumeUrl: uploadedUrl });
-      showPopup('success', 'Resume Uploaded to Cloudinary', 'Your resume PDF/Document has been securely stored on Cloudinary and linked to your profile.');
-    } catch (err: any) {
-      showPopup('error', 'Upload Failed', err.message || 'Could not upload resume to Cloudinary.');
-    } finally {
-      setUploadingResume(false);
-    }
+  const isValidEmail = (e: string) => {
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    return emailRegex.test(e);
   };
 
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setUploadingAvatar(true);
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('folder', 'tpc-avatars');
-      formData.append('resource_type', 'image');
-
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-        credentials: 'include'
-      });
-
-      if (!res.ok) throw new Error('Avatar upload failed');
-      const data = await res.json();
-      setAvatarUrl(data.url);
-      showPopup('success', 'Photo Uploaded', 'Your profile photo has been updated via Cloudinary.');
-    } catch (err: any) {
-      showPopup('error', 'Upload Failed', err.message || 'Could not upload photo.');
-    } finally {
-      setUploadingAvatar(false);
-    }
-  };
-
-  // Save changes handler
   const handleSaveProfile = async () => {
+    const rawDigits = phone.replace(/[^0-9]/g, '');
+    if (rawDigits.length !== 10) {
+      showPopup('error', 'Invalid Phone Number', 'The phone number cannot be saved if its not 10 digits.');
+      return;
+    }
+
+    if (!isValidEmail(email)) {
+      showPopup('error', 'Invalid Email Domain', 'The email cannot be saved without a valid domain (e.g. name@ipu.ac.in).');
+      return;
+    }
+
     setSaving(true);
     try {
-      await persistStudentData();
+      const res = await fetch('/api/students/me', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email.trim().toLowerCase(),
+          phone: rawDigits,
+          cgpa: parseFloat(cgpa) || 8.0,
+          backlogs: Number(backlogs) || 0,
+          class10: parseFloat(class10) || 85.0,
+          class12: parseFloat(class12) || 85.0,
+          skills: skills,
+          bio: bio,
+        }),
+        credentials: 'include'
+      });
+
+      let json: any = {};
+      const resText = await res.text();
+      try {
+        json = JSON.parse(resText);
+      } catch {
+        throw new Error(`Server returned unexpected response (${res.status})`);
+      }
+
+      if (!res.ok) {
+        throw new Error(json.error || 'Failed to save profile');
+      }
+
+      await mutate('/api/students/me');
+      await mutate('/api/auth/me');
+      await mutate('/api/drives/eligible');
+      await mutate('/api/applications');
+
       setEditing(false);
-      showPopup('success', 'Profile & Academic Details Updated', 'Your updated academic records, skills, and certifications have been permanently saved in the database.');
+      showPopup('success', 'Success', 'details updated successfully');
     } catch (err: any) {
-      showPopup('error', 'Update Failed', err.message || 'Could not update profile.');
+      showPopup('error', 'Update Failed', err.message || 'Unable to save profile details.');
     } finally {
       setSaving(false);
     }
   };
 
-  // Real-time Skills management
   const handleAddSkill = async (e: React.FormEvent) => {
     e.preventDefault();
-    const s = newSkillInput.trim();
-    if (s && !skills.includes(s)) {
-      const updatedSkills = [...skills, s];
-      setSkills(updatedSkills);
+    const trimmed = newSkillInput.trim();
+    if (!trimmed) return;
+    if (skills.map(s => s.toLowerCase()).includes(trimmed.toLowerCase())) {
       setNewSkillInput("");
-      await persistStudentData({ skills: updatedSkills });
+      return;
     }
+
+    const updatedSkills = [...skills, trimmed];
+    setSkills(updatedSkills);
+    setNewSkillInput("");
+
+    try {
+      await fetch('/api/students/me', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ skills: updatedSkills }),
+        credentials: 'include'
+      });
+      await mutate('/api/students/me');
+      await mutate('/api/drives/eligible');
+    } catch {}
   };
 
   const handleRemoveSkill = async (skillToRemove: string) => {
     const updatedSkills = skills.filter(s => s !== skillToRemove);
     setSkills(updatedSkills);
-    await persistStudentData({ skills: updatedSkills });
+
+    try {
+      await fetch('/api/students/me', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ skills: updatedSkills }),
+        credentials: 'include'
+      });
+      await mutate('/api/students/me');
+      await mutate('/api/drives/eligible');
+    } catch {}
   };
 
-  // Real-time Certifications management
   const handleAddCert = (e: React.FormEvent) => {
     e.preventDefault();
     if (newCertName.trim() && newCertIssuer.trim()) {
-      setCertifications(prev => [
-        ...prev,
-        {
-          name: newCertName.trim(),
-          issuer: newCertIssuer.trim(),
-          year: newCertYear.trim() || "2026",
-          badge: newCertIssuer.slice(0, 4).toUpperCase()
-        }
-      ]);
+      const badge = newCertIssuer.split(' ')[0].toUpperCase().slice(0, 4) || 'CERT';
+      setCertifications(prev => [...prev, {
+        name: newCertName.trim(),
+        issuer: newCertIssuer.trim(),
+        year: newCertYear || "2026",
+        badge: badge
+      }]);
       setNewCertName("");
       setNewCertIssuer("");
       setShowAddCertModal(false);
@@ -252,7 +230,6 @@ export default function StudentProfilePage() {
     setCertifications(prev => prev.filter((_, i) => i !== index));
   };
 
-  // Real-time Achievements management
   const handleAddAchievement = (e: React.FormEvent) => {
     e.preventDefault();
     if (newAchievementInput.trim()) {
@@ -266,28 +243,33 @@ export default function StudentProfilePage() {
     setAchievements(prev => prev.filter((_, i) => i !== index));
   };
 
+  const displayName = name || studentData?.student?.name || "Student";
+  const initials = displayName.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase() || "ST";
+
   return (
-    <div className="p-8 animate-fade-in text-stone-800 space-y-6 select-none max-w-7xl mx-auto">
+    <div className="animate-fade-in text-[#1C1A1A] space-y-6 select-none max-w-7xl mx-auto bg-[#F8F5EC]">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 rounded-2xl border border-stone-200 shadow-xs">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 rounded-2xl border border-[#E3D8C4] shadow-xs">
         <div>
-          <h1 className="text-xl font-bold text-stone-900">Student Profile & Academic Transcript</h1>
-          <p className="text-stone-500 text-xs mt-0.5">Manage and update your placement bio, academic metrics, Cloudinary resume, and honors in real-time</p>
+          <h1 className="text-xl font-bold text-[#1C1A1A]">Student Profile & Academic Transcript</h1>
+          <p className="text-[#5E544A] text-xs mt-0.5">Manage your placement contact information, academic metrics, verified skills, and honors</p>
         </div>
 
         <div className="flex items-center gap-2">
           {editing ? (
             <>
               <button
-                onClick={() => setEditing(false)}
-                className="px-4 py-2 border border-stone-200 rounded-xl text-xs font-semibold text-stone-600 hover:bg-stone-50"
+                type="button"
+                onClick={handleCancelEdit}
+                className="px-4 py-2 border border-[#E3D8C4] rounded-xl text-xs font-bold text-[#5E544A] hover:bg-[#F8F5EC]"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={handleSaveProfile}
                 disabled={saving}
-                className="flex items-center gap-1.5 px-5 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold shadow-sm transition-all"
+                className="flex items-center gap-1.5 px-5 py-2 bg-[#8B1A1A] hover:bg-[#A63030] text-white rounded-xl text-xs font-bold shadow-xs transition-all"
               >
                 {saving ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
                 Save Changes
@@ -295,10 +277,11 @@ export default function StudentProfilePage() {
             </>
           ) : (
             <button
+              type="button"
               onClick={() => setEditing(true)}
-              className="flex items-center gap-1.5 px-4 py-2 border border-stone-200 rounded-xl text-xs font-bold text-stone-700 hover:bg-stone-50 transition-colors shadow-2xs"
+              className="flex items-center gap-1.5 px-4 py-2 border border-[#E3D8C4] rounded-xl text-xs font-bold text-[#1C1A1A] hover:bg-[#F1E9D8] transition-colors shadow-2xs"
             >
-              <Edit3 size={14} className="text-orange-500" />
+              <Edit3 size={14} className="text-[#8B1A1A]" />
               Edit Profile
             </button>
           )}
@@ -308,507 +291,485 @@ export default function StudentProfilePage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left: Profile Summary Card */}
         <div className="col-span-1 space-y-4">
-          <div className="bg-white rounded-2xl border border-stone-200 shadow-card p-6 text-center">
+          <div className="bg-white rounded-2xl border border-[#E3D8C4] shadow-card p-6 text-center">
             <div className="relative inline-block mb-4">
-              {avatarUrl ? (
-                <img src={avatarUrl} alt={name} className="w-20 h-20 rounded-full object-cover mx-auto border-2 border-orange-300" />
-              ) : (
-                <div className="w-20 h-20 bg-orange-100 border border-orange-200 rounded-full flex items-center justify-center mx-auto text-2xl font-extrabold text-orange-600">
-                  {name.slice(0, 2).toUpperCase()}
-                </div>
-              )}
-              <input
-                type="file"
-                ref={avatarInputRef}
-                onChange={handleAvatarUpload}
-                accept="image/*"
-                className="hidden"
-              />
-              <button
-                onClick={() => avatarInputRef.current?.click()}
-                disabled={uploadingAvatar}
-                className="absolute bottom-0 right-0 w-7 h-7 bg-orange-500 hover:bg-orange-600 text-white rounded-full flex items-center justify-center shadow-md transition-transform active:scale-95"
-                title="Upload Photo to Cloudinary"
-              >
-                {uploadingAvatar ? <Loader2 size={12} className="animate-spin" /> : <Camera size={12} />}
-              </button>
+              <div className="w-20 h-20 bg-[#F1E9D8] border border-[#E3D8C4] rounded-full flex items-center justify-center mx-auto text-2xl font-extrabold text-[#8B1A1A]">
+                {initials}
+              </div>
             </div>
 
-            {editing ? (
-              <div className="space-y-2 mb-3">
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Full Name"
-                  className="w-full text-center font-bold text-base border border-stone-200 rounded-xl px-3 py-1.5 bg-stone-50 text-stone-900 select-text"
-                />
-                <input
-                  type="text"
-                  value={rollNo}
-                  onChange={(e) => setRollNo(e.target.value)}
-                  placeholder="Roll No"
-                  className="w-full text-center text-xs font-medium border border-stone-200 rounded-xl px-3 py-1 bg-stone-50 text-stone-600 select-text"
-                />
+            <div className="space-y-1">
+              <div className="flex items-center justify-center gap-1.5">
+                <h2 className="font-bold text-[#1C1A1A] text-lg">{displayName}</h2>
+                <span title="Name is official and verified by University Registrar">
+                  <Lock size={13} className="text-[#8B7B6F]" />
+                </span>
               </div>
-            ) : (
-              <>
-                <h2 className="font-bold text-stone-900 text-lg">{name}</h2>
-                <p className="text-stone-500 text-xs font-semibold">{branch} • Class of {graduationYear}</p>
-                <p className="text-[11px] text-stone-400 mt-0.5">{rollNo}</p>
-              </>
-            )}
+              <p className="text-[#5E544A] text-xs font-bold">{branch} • Class of {graduationYear}</p>
+              <p className="text-[11px] text-[#8B7B6F] mt-0.5 flex items-center justify-center gap-1">
+                <span>Enrollment No: <strong>{rollNo || '07114803121'}</strong></span>
+                <span title="Enrollment number is locked">
+                  <Lock size={11} className="text-[#8B7B6F]" />
+                </span>
+              </p>
+            </div>
 
-            <div className="mt-3 inline-flex items-center gap-1 px-3 py-1 bg-orange-50 border border-orange-200 text-orange-700 rounded-full text-xs font-bold">
-              <Star size={12} className="text-orange-500" fill="currentColor" />
+            <div className="mt-3 inline-flex items-center gap-1 px-3 py-1 bg-[#F1E9D8] border border-[#E3D8C4] text-[#8B1A1A] rounded-full text-xs font-bold">
+              <Star size={12} className="text-[#C8A243]" fill="currentColor" />
               <span>{parseFloat(cgpa) >= 8.5 ? 'Dream Offer Eligible' : 'Standard Placement Tier'} (CGPA: {cgpa})</span>
             </div>
 
-            <div className="mt-4 pt-4 border-t border-stone-100 space-y-2 text-left text-xs">
-              <div className="flex items-center gap-2 text-stone-600">
-                <Mail size={14} className="text-stone-400 shrink-0" />
-                {editing ? (
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full border border-stone-200 rounded-lg px-2 py-1 text-xs bg-stone-50 select-text"
-                  />
-                ) : (
-                  <span className="truncate">{email}</span>
-                )}
+            <div className="mt-4 pt-4 border-t border-[#E3D8C4] space-y-3 text-left text-xs">
+              <div>
+                <label className="block text-[10px] font-bold text-[#8B7B6F] uppercase mb-1">Email Address</label>
+                <div className="flex items-center gap-2 text-[#5E544A]">
+                  <Mail size={14} className="text-[#8B7B6F] shrink-0" />
+                  {editing ? (
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="student@ipu.ac.in"
+                      className="flex-1 border border-[#E3D8C4] rounded-lg px-2.5 py-1 text-xs bg-[#F8F5EC] text-[#1C1A1A] focus:outline-none focus:ring-1 focus:ring-[#8B1A1A] font-semibold"
+                    />
+                  ) : (
+                    <span className="font-semibold text-[#1C1A1A] truncate">{email || 'Not provided'}</span>
+                  )}
+                </div>
               </div>
-              <div className="flex items-center gap-2 text-stone-600">
-                <Phone size={14} className="text-stone-400 shrink-0" />
-                {editing ? (
-                  <input
-                    type="text"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="w-full border border-stone-200 rounded-lg px-2 py-1 text-xs bg-stone-50 select-text"
-                  />
-                ) : (
-                  <span>{phone}</span>
-                )}
+
+              <div>
+                <label className="block text-[10px] font-bold text-[#8B7B6F] uppercase mb-1">Phone Number (10 Digits)</label>
+                <div className="flex items-center gap-2 text-[#5E544A]">
+                  <Phone size={14} className="text-[#8B7B6F] shrink-0" />
+                  {editing ? (
+                    <div className="flex-1 flex items-center">
+                      <span className="px-2 py-1 bg-[#F1E9D8] border border-r-0 border-[#E3D8C4] rounded-l-lg text-[11px] font-bold text-[#5E544A]">
+                        +91
+                      </span>
+                      <input
+                        type="tel"
+                        maxLength={10}
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, ''))}
+                        placeholder="9811234567"
+                        className="w-full border border-[#E3D8C4] rounded-r-lg px-2.5 py-1 text-xs bg-[#F8F5EC] text-[#1C1A1A] focus:outline-none focus:ring-1 focus:ring-[#8B1A1A] font-semibold"
+                      />
+                    </div>
+                  ) : (
+                    <span className="font-semibold text-[#1C1A1A]">{phone ? `+91 ${phone}` : 'Not provided'}</span>
+                  )}
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Cloudinary Resume Vault Card */}
-          <div className="bg-white rounded-2xl border border-stone-200 shadow-card p-5 space-y-3 text-xs">
-            <div className="flex items-center justify-between">
-              <span className="font-bold text-stone-900 text-sm flex items-center gap-1.5">
-                <FileText size={15} className="text-orange-500" />
-                Resume (Cloudinary)
-              </span>
-              <span className="bg-green-100 text-green-800 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
-                <CheckCircle2 size={11} /> Verified
-              </span>
-            </div>
-
-            <input
-              type="file"
-              ref={resumeInputRef}
-              onChange={handleResumeFileUpload}
-              accept=".pdf,.doc,.docx,image/*"
-              className="hidden"
-            />
-
-            <div className="pt-1 space-y-2">
-              <button
-                onClick={() => resumeInputRef.current?.click()}
-                disabled={uploadingResume}
-                className="w-full py-2.5 bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-2xs"
-              >
-                {uploadingResume ? (
-                  <>
-                    <Loader2 size={13} className="animate-spin" />
-                    <span>Uploading to Cloudinary...</span>
-                  </>
-                ) : (
-                  <>
-                    <Upload size={13} />
-                    <span>Upload New Resume</span>
-                  </>
-                )}
-              </button>
-
-              {resumeUrl && (
-                <a
-                  href={resumeUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full py-2 bg-stone-50 hover:bg-stone-100 border border-stone-200 text-stone-700 rounded-xl font-semibold flex items-center justify-center gap-1.5 transition-colors text-[11px]"
-                >
-                  <ExternalLink size={12} />
-                  <span>View Cloudinary Resume</span>
-                </a>
-              )}
+          {/* Placement Status Card */}
+          <div className="bg-white rounded-2xl border border-[#E3D8C4] shadow-card p-5 space-y-3">
+            <h3 className="font-bold text-xs text-[#1C1A1A] uppercase tracking-wider">Placement Readiness</h3>
+            <div className="space-y-2 text-xs">
+              <div className="flex justify-between items-center py-1 border-b border-[#E3D8C4]">
+                <span className="text-[#5E544A]">Resume Status:</span>
+                <span className="px-2 py-0.5 bg-[#F1E9D8] text-[#4A7C59] border border-[#E3D8C4] rounded-md font-bold text-[11px] flex items-center gap-1">
+                  <Check size={11} /> Verified by TPO
+                </span>
+              </div>
+              <div className="flex justify-between items-center py-1 border-b border-[#E3D8C4]">
+                <span className="text-[#5E544A]">Placement Status:</span>
+                <span className="px-2 py-0.5 bg-[#F1E9D8] text-[#8B1A1A] border border-[#E3D8C4] rounded-md font-bold text-[11px] uppercase">
+                  {studentData?.student?.placementStatus || 'Active Candidate'}
+                </span>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Right: Updatable Sections (Academic, Skills, Achievements) */}
+        {/* Right: Detailed Tabs & Form */}
         <div className="col-span-1 lg:col-span-2 space-y-6">
-          {/* Bio Box */}
-          <div className="bg-white rounded-2xl border border-stone-200 shadow-card p-5 text-xs">
-            <h3 className="font-bold text-stone-900 text-sm mb-2">Professional Summary</h3>
+          {/* Bio / Summary */}
+          <div className="bg-white rounded-2xl border border-[#E3D8C4] shadow-card p-6">
+            <h3 className="font-bold text-sm text-[#1C1A1A] mb-2">Professional Summary</h3>
             {editing ? (
               <textarea
+                rows={3}
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}
-                rows={3}
-                className="w-full border border-stone-200 rounded-xl p-3 text-xs bg-stone-50 focus:ring-1 focus:ring-orange-500 outline-none leading-relaxed select-text"
+                placeholder="Write a brief professional introduction highlight your strengths, technical expertise, and career aspirations..."
+                className="w-full border border-[#E3D8C4] rounded-xl p-3 text-xs bg-[#F8F5EC] text-[#1C1A1A] focus:outline-none focus:ring-1 focus:ring-[#8B1A1A] font-medium"
               />
             ) : (
-              <p className="text-stone-600 leading-relaxed">{bio}</p>
+              <p className="text-xs text-[#5E544A] leading-relaxed font-medium">
+                {bio || "Final year student focused on building high-impact software systems, collaborating on cutting-edge industry challenges, and exploring modern distributed computing."}
+              </p>
             )}
           </div>
 
-          {/* Updatable Tabs Container */}
-          <div className="bg-white rounded-2xl border border-stone-200 shadow-card overflow-hidden text-xs">
-            {/* Tab Headers */}
-            <div className="flex border-b border-stone-200 bg-stone-50/70 p-1.5 gap-2">
-              {[
-                { key: 'academic', label: 'Academic Transcript' },
-                { key: 'skills', label: `Skills & Stack (${skills.length})` },
-                { key: 'achievements', label: `Honors & Certifications (${achievements.length + certifications.length})` },
-              ].map(tab => (
-                <button
-                  key={tab.key}
-                  onClick={() => setActiveTab(tab.key as any)}
-                  className={`px-4 py-2 rounded-xl font-bold transition-all ${
-                    activeTab === tab.key
-                      ? 'bg-white text-orange-600 shadow-xs'
-                      : 'text-stone-500 hover:text-stone-800'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Tab Content */}
-            <div className="p-6">
-              {/* TAB 1: ACADEMIC DETAILS */}
-              {activeTab === 'academic' && (
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center mb-2">
-                    <h4 className="font-bold text-stone-900 text-sm">Academic Performance Metrics</h4>
-                    {editing && <span className="text-[11px] text-orange-600 font-semibold">Editing Active</span>}
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="p-4 rounded-xl border border-orange-200 bg-orange-50/50">
-                      <p className="text-[10px] text-stone-500 font-bold uppercase">Current CGPA</p>
-                      {editing ? (
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={cgpa}
-                          onChange={(e) => setCgpa(e.target.value)}
-                          className="mt-1 w-full border border-orange-300 rounded-lg px-3 py-1.5 bg-white font-extrabold text-orange-600 text-base select-text"
-                        />
-                      ) : (
-                        <p className="text-2xl font-extrabold text-orange-600 mt-1">{cgpa} / 10</p>
-                      )}
-                    </div>
-
-                    <div className="p-4 rounded-xl border border-stone-200 bg-stone-50">
-                      <p className="text-[10px] text-stone-500 font-bold uppercase">Active Backlogs</p>
-                      {editing ? (
-                        <input
-                          type="number"
-                          min="0"
-                          value={backlogs}
-                          onChange={(e) => setBacklogs(Math.max(0, parseInt(e.target.value) || 0))}
-                          className="mt-1 w-full border border-stone-200 rounded-lg px-3 py-1.5 bg-white font-bold text-stone-900 select-text"
-                        />
-                      ) : (
-                        <p className="text-2xl font-extrabold text-stone-900 mt-1">{backlogs}</p>
-                      )}
-                    </div>
-
-                    <div className="p-4 rounded-xl border border-stone-200 bg-stone-50">
-                      <p className="text-[10px] text-stone-500 font-bold uppercase">Engineering Branch</p>
-                      {editing ? (
-                        <select
-                          value={branch}
-                          onChange={(e) => setBranch(e.target.value)}
-                          className="mt-1 w-full border border-stone-200 rounded-lg px-3 py-1.5 bg-white font-bold text-stone-900"
-                        >
-                          {availableBranches.map(b => (
-                            <option key={b} value={b}>{b}</option>
-                          ))}
-                        </select>
-                      ) : (
-                        <p className="text-lg font-bold text-stone-900 mt-1">{branch}</p>
-                      )}
-                    </div>
-
-                    <div className="p-4 rounded-xl border border-stone-200 bg-stone-50">
-                      <p className="text-[10px] text-stone-500 font-bold uppercase">Graduation Year</p>
-                      {editing ? (
-                        <select
-                          value={graduationYear}
-                          onChange={(e) => setGraduationYear(Number(e.target.value))}
-                          className="mt-1 w-full border border-stone-200 rounded-lg px-3 py-1.5 bg-white font-bold text-stone-900"
-                        >
-                          {gradYearOptions.map(y => (
-                            <option key={y} value={y}>{y}</option>
-                          ))}
-                        </select>
-                      ) : (
-                        <p className="text-lg font-bold text-stone-900 mt-1">{graduationYear}</p>
-                      )}
-                    </div>
-
-                    <div className="p-4 rounded-xl border border-stone-200 bg-stone-50">
-                      <p className="text-[10px] text-stone-500 font-bold uppercase">Class 12th Percentage</p>
-                      {editing ? (
-                        <input
-                          type="number"
-                          step="0.1"
-                          value={class12}
-                          onChange={(e) => setClass12(e.target.value)}
-                          className="mt-1 w-full border border-stone-200 rounded-lg px-3 py-1.5 bg-white font-bold text-stone-900 select-text"
-                        />
-                      ) : (
-                        <p className="text-lg font-bold text-stone-900 mt-1">{class12}%</p>
-                      )}
-                    </div>
-
-                    <div className="p-4 rounded-xl border border-stone-200 bg-stone-50">
-                      <p className="text-[10px] text-stone-500 font-bold uppercase">Class 10th Percentage</p>
-                      {editing ? (
-                        <input
-                          type="number"
-                          step="0.1"
-                          value={class10}
-                          onChange={(e) => setClass10(e.target.value)}
-                          className="mt-1 w-full border border-stone-200 rounded-lg px-3 py-1.5 bg-white font-bold text-stone-900 select-text"
-                        />
-                      ) : (
-                        <p className="text-lg font-bold text-stone-900 mt-1">{class10}%</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* TAB 2: SKILLS & STACK (Real-time Add & Delete) */}
-              {activeTab === 'skills' && (
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <h4 className="font-bold text-stone-900 text-sm">Verified Skills & Tools (Real-Time Synchronized)</h4>
-                  </div>
-
-                  <form onSubmit={handleAddSkill} className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="Type skill name (e.g. Docker, PyTorch, GraphQL) and hit Add..."
-                      value={newSkillInput}
-                      onChange={(e) => setNewSkillInput(e.target.value)}
-                      className="flex-1 border border-stone-200 rounded-xl px-3 py-2 text-xs bg-stone-50 focus:ring-1 focus:ring-orange-500 select-text font-medium"
-                    />
-                    <button
-                      type="submit"
-                      className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold flex items-center gap-1 shadow-2xs text-xs"
-                    >
-                      <Plus size={13} /> Add Skill
-                    </button>
-                  </form>
-
-                  <div className="flex flex-wrap gap-2 pt-2">
-                    {skills.map(skill => (
-                      <div
-                        key={skill}
-                        className="px-3 py-1.5 bg-orange-50 border border-orange-200 text-orange-800 rounded-xl font-bold text-xs flex items-center gap-2 group transition-all"
-                      >
-                        <span>{skill}</span>
-                        <button
-                          onClick={() => handleRemoveSkill(skill)}
-                          className="text-orange-400 hover:text-red-600 transition-colors"
-                          title={`Delete ${skill}`}
-                        >
-                          <X size={13} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* TAB 3: ACHIEVEMENTS & CERTIFICATIONS */}
-              {activeTab === 'achievements' && (
-                <div className="space-y-6">
-                  {/* Certifications Section */}
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center">
-                      <h4 className="font-bold text-stone-900 text-sm">Professional Certifications</h4>
-                      <button
-                        onClick={() => setShowAddCertModal(true)}
-                        className="px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-2xs"
-                      >
-                        <Plus size={12} /> Add Certification
-                      </button>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {certifications.map((cert, idx) => (
-                        <div key={idx} className="p-3.5 border border-stone-200 rounded-xl bg-stone-50/70 flex items-start justify-between">
-                          <div className="flex items-start gap-2.5">
-                            <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center font-extrabold text-orange-600 text-[10px]">
-                              {cert.badge}
-                            </div>
-                            <div>
-                              <p className="font-bold text-stone-900">{cert.name}</p>
-                              <p className="text-[11px] text-stone-500">{cert.issuer} • {cert.year}</p>
-                            </div>
-                          </div>
-                          <button
-                            onClick={() => handleRemoveCert(idx)}
-                            className="text-stone-400 hover:text-red-600 p-1"
-                            title="Delete certificate"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Achievements Section */}
-                  <div className="space-y-3 pt-4 border-t border-stone-100">
-                    <div className="flex justify-between items-center">
-                      <h4 className="font-bold text-stone-900 text-sm">Honors & Competitions</h4>
-                      <button
-                        onClick={() => setShowAddAchievementModal(true)}
-                        className="px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-2xs"
-                      >
-                        <Plus size={12} /> Add Honor
-                      </button>
-                    </div>
-
-                    <div className="space-y-2">
-                      {achievements.map((ach, idx) => (
-                        <div key={idx} className="p-3 border border-stone-200 rounded-xl bg-white flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Award size={14} className="text-orange-500 shrink-0" />
-                            <span className="font-semibold text-stone-800">{ach}</span>
-                          </div>
-                          <button
-                            onClick={() => handleRemoveAchievement(idx)}
-                            className="text-stone-400 hover:text-red-600 p-1"
-                            title="Delete honor"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
+          {/* Navigation Tabs */}
+          <div className="bg-white rounded-2xl border border-[#E3D8C4] shadow-card p-2 flex gap-2">
+            <button
+              onClick={() => setActiveTab("academic")}
+              className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all ${
+                activeTab === "academic"
+                  ? "bg-[#F1E9D8] text-[#8B1A1A] border border-[#E3D8C4] shadow-xs"
+                  : "text-[#5E544A] hover:bg-[#F8F5EC]"
+              }`}
+            >
+              Academic Transcript
+            </button>
+            <button
+              onClick={() => setActiveTab("skills")}
+              className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all ${
+                activeTab === "skills"
+                  ? "bg-[#F1E9D8] text-[#8B1A1A] border border-[#E3D8C4] shadow-xs"
+                  : "text-[#5E544A] hover:bg-[#F8F5EC]"
+              }`}
+            >
+              Skills & Stack ({skills.length})
+            </button>
+            <button
+              onClick={() => setActiveTab("achievements")}
+              className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all ${
+                activeTab === "achievements"
+                  ? "bg-[#F1E9D8] text-[#8B1A1A] border border-[#E3D8C4] shadow-xs"
+                  : "text-[#5E544A] hover:bg-[#F8F5EC]"
+              }`}
+            >
+              Honors & Certifications ({certifications.length + achievements.length})
+            </button>
           </div>
+
+          {/* TAB 1: Academic Transcript */}
+          {activeTab === "academic" && (
+            <div className="bg-white rounded-2xl border border-[#E3D8C4] shadow-card p-6 space-y-4 animate-fade-in">
+              <h3 className="font-bold text-xs text-[#1C1A1A] uppercase tracking-wider">Academic Performance Metrics</h3>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="bg-[#F8F5EC] p-4 rounded-xl border border-[#E3D8C4]">
+                  <label className="block text-[10px] font-bold text-[#8B7B6F] uppercase mb-1">Current CGPA</label>
+                  {editing ? (
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="10"
+                      value={cgpa}
+                      onChange={(e) => setCgpa(e.target.value)}
+                      className="w-full border border-[#E3D8C4] rounded-lg px-2.5 py-1 text-sm bg-white text-[#1C1A1A] font-bold focus:outline-none focus:ring-1 focus:ring-[#8B1A1A]"
+                    />
+                  ) : (
+                    <p className="text-xl font-black text-[#8B1A1A]">{cgpa} <span className="text-xs text-[#8B7B6F] font-normal">/ 10</span></p>
+                  )}
+                </div>
+
+                <div className="bg-[#F8F5EC] p-4 rounded-xl border border-[#E3D8C4]">
+                  <label className="block text-[10px] font-bold text-[#8B7B6F] uppercase mb-1">Active Backlogs</label>
+                  {editing ? (
+                    <input
+                      type="number"
+                      min="0"
+                      max="10"
+                      value={backlogs}
+                      onChange={(e) => setBacklogs(Number(e.target.value))}
+                      className="w-full border border-[#E3D8C4] rounded-lg px-2.5 py-1 text-sm bg-white text-[#1C1A1A] font-bold focus:outline-none focus:ring-1 focus:ring-[#8B1A1A]"
+                    />
+                  ) : (
+                    <p className={`text-xl font-black ${backlogs === 0 ? "text-[#4A7C59]" : "text-[#C85555]"}`}>{backlogs}</p>
+                  )}
+                </div>
+
+                <div className="bg-[#F8F5EC] p-4 rounded-xl border border-[#E3D8C4]">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-[10px] font-bold text-[#8B7B6F] uppercase mb-1">Engineering Branch</label>
+                    <Lock size={12} className="text-[#8B7B6F]" />
+                  </div>
+                  <p className="text-base font-bold text-[#1C1A1A]">{branch}</p>
+                  <p className="text-[10px] text-[#8B7B6F]">Fixed by Enrollment Record</p>
+                </div>
+
+                <div className="bg-[#F8F5EC] p-4 rounded-xl border border-[#E3D8C4]">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-[10px] font-bold text-[#8B7B6F] uppercase mb-1">Graduation Year</label>
+                    <Lock size={12} className="text-[#8B7B6F]" />
+                  </div>
+                  <p className="text-base font-bold text-[#1C1A1A]">Class of {graduationYear}</p>
+                  <p className="text-[10px] text-[#8B7B6F]">Fixed by University Registrar</p>
+                </div>
+
+                <div className="bg-[#F8F5EC] p-4 rounded-xl border border-[#E3D8C4]">
+                  <label className="block text-[10px] font-bold text-[#8B7B6F] uppercase mb-1">Class 12th Percentage</label>
+                  {editing ? (
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      max="100"
+                      value={class12}
+                      onChange={(e) => setClass12(e.target.value)}
+                      className="w-full border border-[#E3D8C4] rounded-lg px-2.5 py-1 text-sm bg-white text-[#1C1A1A] font-bold focus:outline-none focus:ring-1 focus:ring-[#8B1A1A]"
+                    />
+                  ) : (
+                    <p className="text-base font-bold text-[#1C1A1A]">{class12}%</p>
+                  )}
+                </div>
+
+                <div className="bg-[#F8F5EC] p-4 rounded-xl border border-[#E3D8C4]">
+                  <label className="block text-[10px] font-bold text-[#8B7B6F] uppercase mb-1">Class 10th Percentage</label>
+                  {editing ? (
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      max="100"
+                      value={class10}
+                      onChange={(e) => setClass10(e.target.value)}
+                      className="w-full border border-[#E3D8C4] rounded-lg px-2.5 py-1 text-sm bg-white text-[#1C1A1A] font-bold focus:outline-none focus:ring-1 focus:ring-[#8B1A1A]"
+                    />
+                  ) : (
+                    <p className="text-base font-bold text-[#1C1A1A]">{class10}%</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 2: Skills & Tech Stack */}
+          {activeTab === "skills" && (
+            <div className="bg-white rounded-2xl border border-[#E3D8C4] shadow-card p-6 space-y-4 animate-fade-in">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="font-bold text-xs text-[#1C1A1A] uppercase tracking-wider">Technical Skills & Expertise</h3>
+                  <p className="text-[11px] text-[#5E544A] mt-0.5">Skills verified and highlighted on your campus placement profile</p>
+                </div>
+              </div>
+
+              <form onSubmit={handleAddSkill} className="flex gap-2">
+                <input
+                  type="text"
+                  value={newSkillInput}
+                  onChange={(e) => setNewSkillInput(e.target.value)}
+                  placeholder="Add skill (e.g. Next.js, PyTorch, GraphQL)..."
+                  className="flex-1 border border-[#E3D8C4] rounded-xl px-3 py-2 text-xs bg-[#F8F5EC] text-[#1C1A1A] focus:outline-none focus:ring-1 focus:ring-[#8B1A1A] font-semibold"
+                />
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-[#8B1A1A] text-white rounded-xl text-xs font-bold hover:bg-[#A63030] flex items-center gap-1 shadow-xs"
+                >
+                  <Plus size={14} /> Add Skill
+                </button>
+              </form>
+
+              <div className="flex flex-wrap gap-2 pt-2">
+                {skills.map((skill) => (
+                  <span
+                    key={skill}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#F1E9D8] text-[#1C1A1A] border border-[#E3D8C4] rounded-xl text-xs font-bold shadow-2xs group"
+                  >
+                    <span>{skill}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveSkill(skill)}
+                      className="text-[#8B7B6F] hover:text-[#C85555] transition-colors p-0.5 rounded"
+                      title={`Remove ${skill}`}
+                    >
+                      <X size={12} />
+                    </button>
+                  </span>
+                ))}
+                {skills.length === 0 && (
+                  <p className="text-xs text-[#8B7B6F] py-2">No technical skills added yet. Type above to add your primary stack.</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 3: Honors & Certifications */}
+          {activeTab === "achievements" && (
+            <div className="bg-white rounded-2xl border border-[#E3D8C4] shadow-card p-6 space-y-6 animate-fade-in">
+              {/* Certifications Section */}
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <h3 className="font-bold text-xs text-[#1C1A1A] uppercase tracking-wider">Professional Certifications</h3>
+                  <button
+                    onClick={() => setShowAddCertModal(true)}
+                    className="flex items-center gap-1 text-xs font-bold text-[#8B1A1A] hover:text-[#A63030]"
+                  >
+                    <Plus size={13} /> Add Certificate
+                  </button>
+                </div>
+
+                <div className="space-y-2">
+                  {certifications.map((c, idx) => (
+                    <div key={idx} className="p-3 bg-[#F8F5EC] rounded-xl border border-[#E3D8C4] flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-[#F1E9D8] border border-[#E3D8C4] flex items-center justify-center font-bold text-[10px] text-[#8B1A1A]">
+                          {c.badge}
+                        </div>
+                        <div>
+                          <p className="font-bold text-xs text-[#1C1A1A]">{c.name}</p>
+                          <p className="text-[11px] text-[#5E544A]">{c.issuer} • {c.year}</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleRemoveCert(idx)}
+                        className="text-[#8B7B6F] hover:text-[#C85555] p-1"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Honors & Achievements */}
+              <div className="space-y-3 pt-4 border-t border-[#E3D8C4]">
+                <div className="flex justify-between items-center">
+                  <h3 className="font-bold text-xs text-[#1C1A1A] uppercase tracking-wider">Honors & Competitions</h3>
+                  <button
+                    onClick={() => setShowAddAchievementModal(true)}
+                    className="flex items-center gap-1 text-xs font-bold text-[#8B1A1A] hover:text-[#A63030]"
+                  >
+                    <Plus size={13} /> Add Honor
+                  </button>
+                </div>
+
+                <div className="space-y-2">
+                  {achievements.map((ach, idx) => (
+                    <div key={idx} className="p-3 bg-[#F8F5EC] rounded-xl border border-[#E3D8C4] flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-xs font-semibold text-[#1C1A1A]">
+                        <Award size={15} className="text-[#C8A243] shrink-0" />
+                        <span>{ach}</span>
+                      </div>
+                      <button
+                        onClick={() => handleRemoveAchievement(idx)}
+                        className="text-[#8B7B6F] hover:text-[#C85555] p-1"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* ADD CERTIFICATION MODAL */}
-      {showAddCertModal && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-2xs p-4 animate-fade-in select-none">
-          <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border border-stone-200 p-6 space-y-4 animate-scale-in text-xs">
-            <div className="flex items-center justify-between">
-              <h3 className="font-bold text-stone-900 text-sm">Add Professional Certification</h3>
-              <button onClick={() => setShowAddCertModal(false)} className="text-stone-400 hover:text-stone-600"><X size={16} /></button>
+      {/* Modal Dialog for Centered Popups */}
+      {modalDialog.isOpen && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 backdrop-blur-2xs p-4 animate-fade-in select-none">
+          <div className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl border border-[#E3D8C4] p-6 text-center animate-scale-in">
+            <div className="w-12 h-12 rounded-2xl bg-[#F1E9D8] text-[#8B1A1A] flex items-center justify-center mx-auto mb-3 border border-[#E3D8C4]">
+              {modalDialog.type === 'success' ? (
+                <CheckCircle2 size={24} className="text-[#4A7C59]" />
+              ) : (
+                <AlertCircle size={24} className="text-[#C85555]" />
+              )}
             </div>
+            <h3 className="text-base font-bold text-[#1C1A1A] mb-1">{modalDialog.title}</h3>
+            <p className="text-xs text-[#5E544A] mb-5 leading-relaxed font-medium">{modalDialog.message}</p>
+            <button
+              type="button"
+              onClick={() => setModalDialog({ ...modalDialog, isOpen: false })}
+              className="w-full py-2.5 bg-[#8B1A1A] hover:bg-[#A63030] text-white rounded-xl font-bold text-xs shadow-xs transition-all active:scale-[0.98]"
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Add Cert Modal */}
+      {showAddCertModal && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 backdrop-blur-2xs p-4 animate-fade-in select-none">
+          <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border border-[#E3D8C4] p-6 space-y-4 animate-scale-in text-xs">
+            <div className="flex justify-between items-center border-b border-[#E3D8C4] pb-3">
+              <h3 className="font-bold text-sm text-[#1C1A1A]">Add Technical Certification</h3>
+              <button onClick={() => setShowAddCertModal(false)} className="text-[#8B7B6F] hover:text-[#1C1A1A]"><X size={16} /></button>
+            </div>
+
             <form onSubmit={handleAddCert} className="space-y-3">
               <div>
-                <label className="block font-semibold text-stone-700 mb-1">Certification Name</label>
+                <label className="block font-bold text-[#5E544A] mb-1">Certification Name *</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. AWS Certified Solutions Architect"
+                  placeholder="e.g. Certified Kubernetes Administrator (CKA)"
                   value={newCertName}
                   onChange={(e) => setNewCertName(e.target.value)}
-                  className="w-full border border-stone-200 rounded-xl p-2 bg-stone-50 select-text"
+                  className="w-full border border-[#E3D8C4] rounded-xl px-3 py-2 bg-[#F8F5EC] text-[#1C1A1A] focus:outline-none focus:ring-1 focus:ring-[#8B1A1A] font-semibold text-xs"
                 />
               </div>
+
               <div>
-                <label className="block font-semibold text-stone-700 mb-1">Issuing Authority</label>
+                <label className="block font-bold text-[#5E544A] mb-1">Issuing Authority / Organization *</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Amazon Web Services, Google, Coursera"
+                  placeholder="e.g. Linux Foundation / CNCF"
                   value={newCertIssuer}
                   onChange={(e) => setNewCertIssuer(e.target.value)}
-                  className="w-full border border-stone-200 rounded-xl p-2 bg-stone-50 select-text"
+                  className="w-full border border-[#E3D8C4] rounded-xl px-3 py-2 bg-[#F8F5EC] text-[#1C1A1A] focus:outline-none focus:ring-1 focus:ring-[#8B1A1A] font-semibold text-xs"
                 />
               </div>
+
               <div className="flex justify-end gap-2 pt-2">
-                <button type="button" onClick={() => setShowAddCertModal(false)} className="px-4 py-2 border rounded-xl">Cancel</button>
-                <button type="submit" className="px-5 py-2 bg-orange-500 text-white rounded-xl font-bold">Add Certificate</button>
+                <button
+                  type="button"
+                  onClick={() => setShowAddCertModal(false)}
+                  className="px-4 py-2 border border-[#E3D8C4] rounded-xl text-[#5E544A] font-bold hover:bg-[#F8F5EC]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-[#8B1A1A] hover:bg-[#A63030] text-white rounded-xl font-bold shadow-xs"
+                >
+                  Add Certificate
+                </button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* ADD ACHIEVEMENT MODAL */}
+      {/* Add Achievement Modal */}
       {showAddAchievementModal && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-2xs p-4 animate-fade-in select-none">
-          <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border border-stone-200 p-6 space-y-4 animate-scale-in text-xs">
-            <div className="flex items-center justify-between">
-              <h3 className="font-bold text-stone-900 text-sm">Add Honor or Award</h3>
-              <button onClick={() => setShowAddAchievementModal(false)} className="text-stone-400 hover:text-stone-600"><X size={16} /></button>
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 backdrop-blur-2xs p-4 animate-fade-in select-none">
+          <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border border-[#E3D8C4] p-6 space-y-4 animate-scale-in text-xs">
+            <div className="flex justify-between items-center border-b border-[#E3D8C4] pb-3">
+              <h3 className="font-bold text-sm text-[#1C1A1A]">Add Honor or Award</h3>
+              <button onClick={() => setShowAddAchievementModal(false)} className="text-[#8B7B6F] hover:text-[#1C1A1A]"><X size={16} /></button>
             </div>
+
             <form onSubmit={handleAddAchievement} className="space-y-3">
               <div>
-                <label className="block font-semibold text-stone-700 mb-1">Honor Description</label>
+                <label className="block font-bold text-[#5E544A] mb-1">Achievement Description *</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Winner — Hackathon 2026, Dean's List..."
+                  placeholder="e.g. Winner of IPU National Hackathon 2026"
                   value={newAchievementInput}
                   onChange={(e) => setNewAchievementInput(e.target.value)}
-                  className="w-full border border-stone-200 rounded-xl p-2 bg-stone-50 select-text"
+                  className="w-full border border-[#E3D8C4] rounded-xl px-3 py-2 bg-[#F8F5EC] text-[#1C1A1A] focus:outline-none focus:ring-1 focus:ring-[#8B1A1A] font-semibold text-xs"
                 />
               </div>
+
               <div className="flex justify-end gap-2 pt-2">
-                <button type="button" onClick={() => setShowAddAchievementModal(false)} className="px-4 py-2 border rounded-xl">Cancel</button>
-                <button type="submit" className="px-5 py-2 bg-orange-500 text-white rounded-xl font-bold">Add Honor</button>
+                <button
+                  type="button"
+                  onClick={() => setShowAddAchievementModal(false)}
+                  className="px-4 py-2 border border-[#E3D8C4] rounded-xl text-[#5E544A] font-bold hover:bg-[#F8F5EC]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-[#8B1A1A] hover:bg-[#A63030] text-white rounded-xl font-bold shadow-xs"
+                >
+                  Add Honor
+                </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* CENTERED POPUP DIALOG */}
-      {modalDialog.isOpen && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-2xs p-4 animate-fade-in select-none">
-          <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border border-stone-200 p-6 space-y-4 text-center animate-scale-in">
-            <div className="flex justify-center">
-              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
-                modalDialog.type === 'error' ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'
-              }`}>
-                {modalDialog.type === 'error' ? <AlertCircle size={24} /> : <CheckCircle2 size={24} />}
-              </div>
-            </div>
-
-            <div>
-              <h3 className="font-bold text-stone-900 text-base">{modalDialog.title}</h3>
-              <p className="text-xs text-stone-500 mt-1.5 leading-relaxed">{modalDialog.message}</p>
-            </div>
-
-            <div className="pt-2 flex justify-center">
-              <button
-                onClick={() => setModalDialog({ ...modalDialog, isOpen: false })}
-                className="px-6 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold transition-all shadow-sm"
-              >
-                Got it
-              </button>
-            </div>
           </div>
         </div>
       )}

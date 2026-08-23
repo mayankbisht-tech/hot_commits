@@ -1,4 +1,3 @@
-// Sidebar.tsx
 'use client';
 
 import React from 'react';
@@ -41,7 +40,7 @@ export default function Sidebar({ role = 'tpo' }: SidebarProps) {
     switch (role) {
       case 'tpo': return 'GGSIPU Admin';
       case 'company': return 'Tech Corp';
-      case 'student': return 'John Doe';
+      case 'student': return 'Student Portal';
       default: return '';
     }
   };
@@ -88,63 +87,56 @@ export default function Sidebar({ role = 'tpo' }: SidebarProps) {
   };
 
   return (
-    <aside className="w-[220px] bg-white h-screen sticky top-0 shadow-[2px_0_10px_-3px_rgba(0,0,0,0.1)] flex flex-col shrink-0 select-none">
-      <div className="p-6 pb-4 select-none">
+    <aside className="w-[220px] bg-white h-screen sticky top-0 border-r border-[#E3D8C4] flex flex-col shrink-0 select-none shadow-xs">
+      <div className="p-5 pb-4 select-none border-b border-[#E3D8C4]">
         <div className="flex items-center gap-3 mb-1">
-          <div className="w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center text-white shrink-0">
-            <GraduationCap size={20} />
+          <div className="w-8 h-8 rounded-xl bg-[#8B1A1A] flex items-center justify-center text-white shrink-0 shadow-xs">
+            <GraduationCap size={18} />
           </div>
           <div>
-            <h1 className="font-semibold text-stone-900 leading-tight">Placement Cell</h1>
-            <p className="text-xs text-stone-500">{getSubtitle()}</p>
+            <h1 className="font-bold text-[#1C1A1A] leading-tight text-sm">Placement Cell</h1>
+            <p className="text-[11px] text-[#5E544A]">{getSubtitle()}</p>
           </div>
         </div>
         
         {role === 'tpo' && (
           <Link 
             href="/tpo/schedule"
-            className="mt-4 w-full flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white py-2.5 px-4 rounded-xl text-xs font-bold transition-all shadow-sm active:scale-[0.98]"
+            className="mt-3.5 w-full flex items-center justify-center gap-1.5 bg-[#8B1A1A] hover:bg-[#A63030] text-white py-2 px-3 rounded-xl text-xs font-bold transition-all shadow-xs active:scale-[0.98]"
           >
-            <Plus size={16} />
+            <Plus size={14} />
             <span>+ New Placement Drive</span>
           </Link>
         )}
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+      <nav className="flex-1 overflow-y-auto px-2.5 py-3 space-y-1">
         {navLinks.map((link) => {
           const isActive = pathname === link.href || (link.href !== `/${role}` && pathname?.startsWith(link.href));
           return (
             <Link
               key={link.href}
               href={link.href}
-              className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
+              className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-colors ${
                 isActive 
-                  ? 'bg-orange-50 text-orange-600 border-l-4 border-orange-600' 
-                  : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900 border-l-4 border-transparent'
+                  ? 'bg-[#F1E9D8] text-[#8B1A1A] border border-[#E3D8C4]' 
+                  : 'text-[#5E544A] hover:bg-[#F8F5EC] hover:text-[#1C1A1A]'
               }`}
             >
-              <link.icon size={18} className={isActive ? 'text-orange-600' : 'text-stone-400'} />
-              <span className="font-medium">{link.label}</span>
+              <link.icon size={16} className={isActive ? 'text-[#8B1A1A]' : 'text-[#8B7B6F]'} />
+              <span>{link.label}</span>
             </Link>
           );
         })}
       </nav>
 
-      <div className="p-3 border-t border-stone-100 space-y-1">
-        <Link
-          href="/help"
-          className="flex items-center gap-3 px-3 py-2 rounded-md text-sm text-stone-600 hover:bg-stone-50 hover:text-stone-900 border-l-4 border-transparent transition-colors"
-        >
-          <HelpCircle size={18} className="text-stone-400" />
-          <span className="font-medium">Help Center</span>
-        </Link>
+      <div className="p-3 border-t border-[#E3D8C4] space-y-1 bg-[#FFFFFF]">
         <button
           onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm text-stone-600 hover:bg-stone-50 hover:text-stone-900 border-l-4 border-transparent transition-colors text-left"
+          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-[#5E544A] hover:bg-[#F8F5EC] hover:text-[#C85555] transition-colors text-left"
         >
-          <LogOut size={18} className="text-stone-400" />
-          <span className="font-medium">Logout</span>
+          <LogOut size={16} className="text-[#8B7B6F]" />
+          <span>Logout</span>
         </button>
       </div>
     </aside>

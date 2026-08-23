@@ -14,7 +14,11 @@ export default function CompanyDashboard() {
   const drives: any[] = drivesData?.drives || [];
   const applications: any[] = appsData?.applications || [];
 
-  const activeDrives = drives.filter(d => d.approvalStatus?.toLowerCase() === 'approved' || d.status?.toLowerCase() === 'active');
+  const activeDrives = drives.filter(d => {
+    const driveTime = new Date(d.driveDate || d.deadline).getTime();
+    if (driveTime < Date.now() - 24 * 60 * 60 * 1000) return false;
+    return d.approvalStatus?.toLowerCase() === 'approved' || d.status?.toLowerCase() === 'active';
+  });
   const totalApplicantsCount = applications.length;
   const shortlistedCount = applications.filter(a => ['SHORTLISTED', 'INTERVIEW_SCHEDULED', 'OFFER_EXTENDED', 'OFFER_ACCEPTED'].includes(a.status?.toUpperCase())).length;
   const offersCount = applications.filter(a => ['OFFER_EXTENDED', 'OFFER_ACCEPTED'].includes(a.status?.toUpperCase())).length;
@@ -36,21 +40,18 @@ export default function CompanyDashboard() {
   const companyName = drives[0]?.company?.name || 'Recruiter';
 
   return (
-    <div className="max-w-7xl mx-auto p-6 space-y-6 animate-fade-in select-none text-stone-800">
+    <div className="max-w-7xl mx-auto p-6 space-y-6 animate-fade-in select-none text-[#1C1A1A] bg-[#F8F5EC]">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 rounded-2xl border border-stone-200 shadow-xs">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 rounded-2xl border border-[#E3D8C4] shadow-xs">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-xl font-bold text-stone-900">Recruitment Overview</h2>
-            <span className="bg-orange-100 text-orange-700 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
-              <Sparkles size={10} /> Live
-            </span>
+            <h2 className="text-xl font-bold text-[#1C1A1A]">Recruitment Overview</h2>
           </div>
-          <p className="text-xs text-stone-500 mt-0.5">Welcome back, {companyName} Talent Acquisition Team</p>
+          <p className="text-xs text-[#5E544A] mt-0.5 font-medium">Welcome back, {companyName} Talent Acquisition Team</p>
         </div>
         <Link 
           href="/company/drives"
-          className="inline-flex items-center px-4 py-2 bg-orange-500 text-white text-xs font-bold rounded-xl hover:bg-orange-600 shadow-sm transition-all active:scale-[0.98]"
+          className="inline-flex items-center px-4 py-2 bg-[#8B1A1A] text-white text-xs font-bold rounded-xl hover:bg-[#A63030] shadow-xs transition-all active:scale-[0.98]"
         >
           <Plus className="mr-1.5 h-4 w-4" />
           Post New Drive
@@ -60,18 +61,18 @@ export default function CompanyDashboard() {
       {/* Stats Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: "Our Active Drives", value: activeDrives.length, icon: Briefcase, color: "text-blue-600", bg: "bg-blue-50 border-blue-200" },
-          { label: "Total Candidates", value: totalApplicantsCount, icon: Users, color: "text-orange-600", bg: "bg-orange-50 border-orange-200" },
-          { label: "Shortlisted Candidates", value: shortlistedCount, icon: FileText, color: "text-purple-600", bg: "bg-purple-50 border-purple-200" },
-          { label: "Offers Extended", value: offersCount, icon: CheckCircle2, color: "text-green-600", bg: "bg-green-50 border-green-200" },
+          { label: "Active Drives", value: activeDrives.length, icon: Briefcase, color: "text-[#8B1A1A]", bg: "bg-[#F1E9D8] border-[#E3D8C4]" },
+          { label: "Total Candidates", value: totalApplicantsCount, icon: Users, color: "text-[#8B1A1A]", bg: "bg-[#F1E9D8] border-[#E3D8C4]" },
+          { label: "Shortlisted", value: shortlistedCount, icon: FileText, color: "text-[#C8A243]", bg: "bg-[#F1E9D8] border-[#E3D8C4]" },
+          { label: "Offers Extended", value: offersCount, icon: CheckCircle2, color: "text-[#4A7C59]", bg: "bg-[#F1E9D8] border-[#E3D8C4]" },
         ].map((stat, i) => (
-          <div key={i} className="bg-white rounded-2xl border border-stone-200 p-5 shadow-card flex items-center space-x-4">
+          <div key={i} className="bg-white rounded-2xl border border-[#E3D8C4] p-5 shadow-card flex items-center space-x-4">
             <div className={`p-3 rounded-xl border ${stat.bg}`}>
               <stat.icon className={`h-6 w-6 ${stat.color}`} />
             </div>
             <div>
-              <p className="text-xs font-semibold text-stone-500">{stat.label}</p>
-              <p className="text-2xl font-extrabold text-stone-900 mt-0.5">{stat.value}</p>
+              <p className="text-xs font-bold text-[#8B7B6F] uppercase tracking-wider">{stat.label}</p>
+              <p className="text-2xl font-extrabold text-[#1C1A1A] mt-0.5">{stat.value}</p>
             </div>
           </div>
         ))}
@@ -79,110 +80,106 @@ export default function CompanyDashboard() {
 
       {/* Main Content Split */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        {/* Left: Our Active Drives List (Requirement 1 & 2) */}
-        <div className="lg:col-span-3 bg-white rounded-2xl border border-stone-200 shadow-card overflow-hidden flex flex-col justify-between">
-          <div className="p-5 border-b border-stone-100 flex justify-between items-center bg-stone-50/70">
+        {/* Left: Active Drives List */}
+        <div className="lg:col-span-3 bg-white rounded-2xl border border-[#E3D8C4] shadow-card overflow-hidden flex flex-col justify-between">
+          <div className="p-5 border-b border-[#E3D8C4] flex justify-between items-center bg-[#F8F5EC]">
             <div>
-              <h3 className="text-sm font-bold text-stone-900">Our Active Drives</h3>
-              <p className="text-[11px] text-stone-500">Live placement drives posted by our company</p>
+              <h3 className="text-sm font-bold text-[#1C1A1A]">Our Active Drives</h3>
+              <p className="text-[11px] text-[#5E544A]">Placement drives posted by our company</p>
             </div>
-            <Link href="/company/drives" className="text-xs font-bold text-orange-600 hover:text-orange-700">
+            <Link href="/company/drives" className="text-xs font-bold text-[#8B1A1A] hover:text-[#A63030]">
               View All Drives →
             </Link>
           </div>
 
-          <div className="divide-y divide-stone-100 flex-1">
+          <div className="divide-y divide-[#E3D8C4] flex-1">
             {drivesLoading ? (
-              <div className="p-12 text-center text-xs text-stone-400 flex items-center justify-center gap-2">
-                <Loader2 size={16} className="animate-spin" /> Loading our drives...
+              <div className="p-12 text-center text-xs text-[#8B7B6F] flex items-center justify-center gap-2">
+                <Loader2 size={16} className="animate-spin text-[#8B1A1A]" /> Loading our drives...
               </div>
             ) : drives.length > 0 ? (
-              drives.slice(0, 4).map((drive) => {
-                const isApproved = drive.approvalStatus?.toLowerCase() === 'approved';
-                const isPending = drive.approvalStatus?.toLowerCase() === 'pending';
-
+              drives.slice(0, 4).map((drive: any) => {
+                const driveAppCount = applications.filter((a: any) => (a.driveId || a.drive?.id) === drive.id).length;
                 return (
-                  <div key={drive.id} className="p-4 hover:bg-stone-50/80 transition-colors flex items-center justify-between gap-3 text-xs">
+                  <div key={drive.id} className="p-4 hover:bg-[#F8F5EC] flex items-center justify-between transition-colors">
                     <div>
                       <div className="flex items-center gap-2">
-                        <h4 className="font-bold text-stone-900">{drive.role}</h4>
-                        {isApproved ? (
-                          <span className="bg-green-100 text-green-800 text-[10px] font-bold px-2 py-0.2 rounded-full">Active</span>
-                        ) : isPending ? (
-                          <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.2 rounded-full">Pending TPO</span>
-                        ) : (
-                          <span className="bg-stone-100 text-stone-700 text-[10px] font-bold px-2 py-0.2 rounded-full">{drive.status}</span>
-                        )}
+                        <span className="font-bold text-[#1C1A1A] text-xs">{drive.role}</span>
+                        <span className="text-[#8B1A1A] font-extrabold text-xs">₹{drive.ctc} LPA</span>
                       </div>
-                      
-                      <div className="flex items-center text-[11px] text-stone-500 mt-1 space-x-3">
-                        <span className="text-orange-600 font-bold">₹{drive.ctc} LPA</span>
-                        <span>•</span>
-                        <span>{drive.location} ({drive.mode})</span>
-                        <span>•</span>
-                        <span className="flex items-center gap-1"><Clock size={11} /> {drive.deadline ? new Date(drive.deadline).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : 'No deadline'}</span>
-                      </div>
-                      
-                      <div className="mt-2 text-[11px] text-stone-500 font-semibold">
-                        {drive._count?.applications || 0} Registered Candidates
-                      </div>
+                      <p className="text-[11px] text-[#5E544A] mt-0.5 font-medium">
+                        {drive.location} ({drive.mode}) • Min CGPA: {drive.minCGPA}
+                      </p>
                     </div>
 
-                    <Link
-                      href="/company/applicants"
-                      className="px-3 py-1.5 border border-stone-200 hover:border-orange-300 text-orange-600 text-xs font-bold rounded-xl hover:bg-orange-50 transition-colors flex items-center gap-1 shadow-2xs"
-                    >
-                      <span>Pipeline</span>
-                      <ArrowRight size={12} />
-                    </Link>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-[#1C1A1A] bg-[#F1E9D8] px-2.5 py-1 rounded-xl border border-[#E3D8C4]">
+                        {driveAppCount} applied
+                      </span>
+                      <Link
+                        href={`/company/applicants?driveId=${drive.id}`}
+                        className="px-3 py-1.5 bg-[#8B1A1A] hover:bg-[#A63030] text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1"
+                      >
+                        <span>Pipeline</span>
+                        <ArrowRight size={12} />
+                      </Link>
+                    </div>
                   </div>
                 );
               })
             ) : (
-              <div className="p-8 text-center text-xs text-stone-400 space-y-2">
-                <p>No recruitment drives posted yet.</p>
-                <Link href="/company/drives" className="inline-block px-3 py-1.5 bg-orange-500 text-white rounded-xl font-bold">
-                  + Create First Drive
-                </Link>
+              <div className="p-8 text-center text-xs text-[#8B7B6F]">
+                No placement drives posted yet.
               </div>
             )}
           </div>
         </div>
 
         {/* Right: Application Funnel */}
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-stone-200 shadow-card p-5 flex flex-col justify-between">
+        <div className="lg:col-span-2 bg-white rounded-2xl border border-[#E3D8C4] shadow-card p-5 flex flex-col justify-between">
           <div>
-            <h3 className="text-sm font-bold text-stone-900 mb-1">Recruitment Funnel</h3>
-            <p className="text-[11px] text-stone-500 mb-4">Conversion from applied to extended offers</p>
+            <h3 className="text-sm font-bold text-[#1C1A1A]">Application Funnel</h3>
+            <p className="text-[11px] text-[#5E544A] mt-0.5">Recruitment progress across stages</p>
           </div>
 
-          <div className="h-56 w-full">
+          <div className="h-52 w-full mt-4">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={funnelData} margin={{ left: -10, right: 10, top: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#F5F5F4" />
-                <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip contentStyle={{ borderRadius: 12, fontSize: 12, border: '1px solid #E7E5E4' }} />
-                <Bar dataKey="value" fill="#F97316" radius={[6, 6, 0, 0]} />
+              <BarChart data={funnelData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#F1E9D8" />
+                <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#5E544A' }} stroke="#E3D8C4" />
+                <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#5E544A' }} stroke="#E3D8C4" />
+                <Tooltip contentStyle={{ borderRadius: 12, fontSize: 12, border: '1px solid #E3D8C4', backgroundColor: '#FFFFFF', color: '#1C1A1A' }} />
+                <Bar dataKey="value" fill="#8B1A1A" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
 
-          {/* Quick activity feed */}
-          <div className="mt-4 pt-3 border-t border-stone-100 space-y-2">
-            <p className="text-[10px] font-bold text-stone-400 uppercase">Recent Activity</p>
-            {recentActivity.length > 0 ? (
-              recentActivity.map(act => (
-                <div key={act.id} className="flex justify-between items-center text-[11px]">
-                  <span className="text-stone-700 truncate max-w-[200px]">{act.action}</span>
-                  <span className="text-[10px] text-stone-400 font-medium shrink-0">{act.time}</span>
-                </div>
-              ))
-            ) : (
-              <p className="text-[11px] text-stone-400">No recent candidate registrations.</p>
-            )}
+          <div className="grid grid-cols-2 gap-2 pt-3 border-t border-[#E3D8C4] text-[11px]">
+            {funnelData.map(f => (
+              <div key={f.name} className="flex justify-between bg-[#F8F5EC] p-2 rounded-xl border border-[#E3D8C4]">
+                <span className="font-bold text-[#5E544A]">{f.name}</span>
+                <span className="font-extrabold text-[#8B1A1A]">{f.value}</span>
+              </div>
+            ))}
           </div>
         </div>
+      </div>
+
+      {/* Recent Activity Timeline */}
+      <div className="bg-white rounded-2xl border border-[#E3D8C4] shadow-card p-5 space-y-3">
+        <h3 className="text-sm font-bold text-[#1C1A1A]">Recent Activity</h3>
+        {recentActivity.length > 0 ? (
+          <div className="space-y-2">
+            {recentActivity.map(act => (
+              <div key={act.id} className="p-3 bg-[#F8F5EC] rounded-xl border border-[#E3D8C4] flex items-center justify-between text-xs">
+                <span className="font-semibold text-[#1C1A1A]">{act.action}</span>
+                <span className="text-[#8B7B6F] text-[11px] font-bold">{act.time}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-[#8B7B6F]">No recent applicant activity.</p>
+        )}
       </div>
     </div>
   );

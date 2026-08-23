@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { auth } from '@/lib/auth';
+import { getCurrentUser } from '@/lib/auth';
 
-export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, context: { params: any }) {
   try {
-    const session = await auth();
-    if (!session) {
+    const user = await getCurrentUser();
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { id } = await params;
+    const rawParams = await context.params;
+    const id = rawParams?.id;
+
     const application = await prisma.application.findUnique({
       where: { id },
       include: {
@@ -29,12 +31,14 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 }
 
-export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function PUT(req: NextRequest, context: { params: any }) {
   try {
-    const session = await auth();
-    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { id } = await params;
+    const rawParams = await context.params;
+    const id = rawParams?.id;
+
     const application = await prisma.application.findUnique({
       where: { id },
       include: { drive: true }
@@ -44,106 +48,109 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     const { status, note, interviewDate, offerCtc } = await req.json();
 
-    // Process side effects in transaction
-    const result = await prisma.$transaction(async (tx) => {
-      const updatedApp = await tx.application.update({
-        where: { id },
-        data: { status },
-        include: { drive: true }
-      });
+    const readableStage = 
+      status === 'APPLIED' ? 'Applied' :
+      status === 'SHORTLISTED' ? 'Shortlisted' :
+      status === 'INTERVIEW_SCHEDULED' ? 'Interview Scheduled' :
+      status === 'OFFER_EXTENDED' ? 'Offer Extended' :
+      status === 'OFFER_ACCEPTED' ? 'Offer Accepted' :
+      status === 'REJECTED' ? 'Rejected' :
+      status === 'WITHDRAWN' ? 'Offer Declined' : status;
 
-      const readableStage = 
-        status === 'APPLIED' ? 'Applied' :
-        status === 'SHORTLISTED' ? 'Shortlisted' :
-        status === 'INTERVIEW_SCHEDULED' ? 'Interview Scheduled' :
-        status === 'OFFER_EXTENDED' ? 'Offer Extended' :
-        status === 'OFFER_ACCEPTED' ? 'Offer Accepted' :
-        status === 'REJECTED' ? 'Rejected' :
-        status === 'WITHDRAWN' ? 'Offer Declined' : status;
-
-      await tx.stageEntry.create({
-        data: {
-          applicationId: id,
-          stage: readableStage,
-          note: note || (status === 'REJECTED' ? 'Application not moving forward' : null),
-          date: interviewDate ? new Date(interviewDate) : new Date()
-        }
-      });
-
-      if (status === 'OFFER_EXTENDED') {
-        const ctc = Number(offerCtc) || updatedApp.drive?.ctc || 10;
-        const existingOffer = await tx.offer.findFirst({
-          where: {
-            studentId: updatedApp.studentId,
-            driveId: updatedApp.driveId,
-          }
-        });
-
-        if (existingOffer) {
-          await tx.offer.update({
-            where: { id: existingOffer.id },
-            data: { ctc, status: 'PENDING' }
-          });
-        } else {
-          await tx.offer.create({
-            data: {
-              studentId: updatedApp.studentId,
-              driveId: updatedApp.driveId,
-              ctc,
-              status: 'PENDING'
-            }
-          });
-        }
-      }
-
-      if (status === 'OFFER_ACCEPTED') {
-        const existingOffer = await tx.offer.findFirst({
-          where: {
-            studentId: updatedApp.studentId,
-            driveId: updatedApp.driveId,
-          }
-        });
-
-        if (existingOffer) {
-          await tx.offer.update({
-            where: { id: existingOffer.id },
-            data: { status: 'ACCEPTED' }
-          });
-        } else {
-          await tx.offer.create({
-            data: {
-              studentId: updatedApp.studentId,
-              driveId: updatedApp.driveId,
-              ctc: updatedApp.drive?.ctc || 10,
-              status: 'ACCEPTED'
-            }
-          });
-        }
-
-        await tx.student.update({
-          where: { id: updatedApp.studentId },
-          data: { placementStatus: 'PLACED' }
-        });
-      }
-
-      if (status === 'WITHDRAWN') {
-        await tx.offer.updateMany({
-          where: { studentId: updatedApp.studentId, driveId: updatedApp.driveId },
-          data: { status: 'DECLINED' }
-        });
-      }
-
-      return await tx.application.findUnique({
-        where: { id },
-        include: { 
-          stageHistory: { orderBy: { date: 'asc' } },
-          student: { select: { id: true, name: true, rollNo: true, branch: true, cgpa: true } },
-          drive: { select: { id: true, role: true, ctc: true, company: { select: { name: true } } } }
-        }
-      });
+    // 1. Update application status
+    const updatedApp = await prisma.application.update({
+      where: { id },
+      data: { status },
+      include: { drive: true }
     });
 
-    return NextResponse.json({ application: result });
+    // 2. Append stage history entry
+    await prisma.stageEntry.create({
+      data: {
+        applicationId: id,
+        stage: readableStage,
+        note: note || (status === 'REJECTED' ? 'Application not moving forward' : null),
+        date: interviewDate ? new Date(interviewDate) : new Date()
+      }
+    }).catch(err => console.error('StageEntry create error:', err));
+
+    // 3. Handle Offer Extended
+    if (status === 'OFFER_EXTENDED') {
+      const ctc = Number(offerCtc) || updatedApp.drive?.ctc || 10;
+      const existingOffer = await prisma.offer.findFirst({
+        where: {
+          studentId: updatedApp.studentId,
+          driveId: updatedApp.driveId,
+        }
+      });
+
+      if (existingOffer) {
+        await prisma.offer.update({
+          where: { id: existingOffer.id },
+          data: { ctc, status: 'PENDING' }
+        }).catch(() => {});
+      } else {
+        await prisma.offer.create({
+          data: {
+            studentId: updatedApp.studentId,
+            driveId: updatedApp.driveId,
+            ctc,
+            status: 'PENDING'
+          }
+        }).catch(() => {});
+      }
+    }
+
+    // 4. Handle Offer Accepted
+    if (status === 'OFFER_ACCEPTED') {
+      const existingOffer = await prisma.offer.findFirst({
+        where: {
+          studentId: updatedApp.studentId,
+          driveId: updatedApp.driveId,
+        }
+      });
+
+      if (existingOffer) {
+        await prisma.offer.update({
+          where: { id: existingOffer.id },
+          data: { status: 'ACCEPTED' }
+        }).catch(() => {});
+      } else {
+        await prisma.offer.create({
+          data: {
+            studentId: updatedApp.studentId,
+            driveId: updatedApp.driveId,
+            ctc: updatedApp.drive?.ctc || 10,
+            status: 'ACCEPTED'
+          }
+        }).catch(() => {});
+      }
+
+      await prisma.student.update({
+        where: { id: updatedApp.studentId },
+        data: { placementStatus: 'PLACED' }
+      }).catch(() => {});
+    }
+
+    // 5. Handle Offer Declined / Withdrawn
+    if (status === 'WITHDRAWN') {
+      await prisma.offer.updateMany({
+        where: { studentId: updatedApp.studentId, driveId: updatedApp.driveId },
+        data: { status: 'DECLINED' }
+      }).catch(() => {});
+    }
+
+    // Return complete updated application object
+    const finalApp = await prisma.application.findUnique({
+      where: { id },
+      include: { 
+        stageHistory: { orderBy: { date: 'asc' } },
+        student: { select: { id: true, name: true, rollNo: true, branch: true, cgpa: true } },
+        drive: { select: { id: true, role: true, ctc: true, company: { select: { name: true } } } }
+      }
+    });
+
+    return NextResponse.json({ application: finalApp });
   } catch (error: any) {
     console.error('Error in PUT /api/applications/[id]:', error);
     return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });

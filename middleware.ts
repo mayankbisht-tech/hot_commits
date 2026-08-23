@@ -17,6 +17,11 @@ export function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // Let API routes handle their own JSON authentication and responses without page redirects
+  if (pathname.startsWith("/api")) {
+    return NextResponse.next();
+  }
+
   const user = getUserFromRequest(req);
 
   // Not authenticated — redirect to login
@@ -26,8 +31,8 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // Role-based route guards
-  const isTPORoute = pathname.startsWith("/tpo") || pathname.startsWith("/api/students") || pathname.startsWith("/api/reports");
+  // Role-based page route guards
+  const isTPORoute = pathname.startsWith("/tpo");
   const isCompanyRoute = pathname.startsWith("/company");
   const isStudentRoute = pathname.startsWith("/student");
 

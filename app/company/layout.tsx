@@ -78,12 +78,12 @@ export default function CompanyLayout({
   };
 
   return (
-    <div className="flex h-screen w-full bg-[#FFFAF6] text-stone-900 font-sans">
+    <div className="flex h-screen w-full bg-[#F8F5EC] text-[#1C1A1A] font-sans">
       {/* Sidebar */}
-      <aside className="w-64 bg-white border-r border-stone-200 flex flex-col flex-shrink-0 shadow-xs">
-        <div className="h-16 flex items-center px-6 border-b border-stone-100 bg-orange-50/50">
-          <Building2 className="text-orange-500 mr-2 h-6 w-6" />
-          <span className="font-bold text-base text-stone-900">Company Portal</span>
+      <aside className="w-64 bg-white border-r border-[#E3D8C4] flex flex-col flex-shrink-0 shadow-xs">
+        <div className="h-16 flex items-center px-6 border-b border-[#E3D8C4] bg-[#F8F5EC]">
+          <Building2 className="text-[#8B1A1A] mr-2.5 h-6 w-6" />
+          <span className="font-bold text-base text-[#1C1A1A]">Company Portal</span>
         </div>
 
         <div className="flex-1 overflow-y-auto py-4">
@@ -94,17 +94,16 @@ export default function CompanyLayout({
                 <Link
                   key={item.name}
                   href={item.href}
-                  className={`flex items-center px-3 py-2.5 rounded-xl text-xs font-semibold transition-colors ${
+                  className={`flex items-center px-3.5 py-2.5 rounded-xl text-xs font-bold transition-colors ${
                     isActive
-                      ? "bg-orange-50 text-orange-700 border-l-4 border-orange-500 font-bold"
-                      : "text-stone-600 hover:bg-stone-50 hover:text-stone-900"
+                      ? "bg-[#F1E9D8] text-[#8B1A1A] border-l-4 border-[#8B1A1A]"
+                      : "text-[#5E544A] hover:bg-[#F8F5EC] hover:text-[#1C1A1A]"
                   }`}
                 >
                   <item.icon
-                    className={`mr-3 flex-shrink-0 h-4 w-4 ${
-                      isActive ? "text-orange-600" : "text-stone-400 group-hover:text-orange-500"
+                    className={`mr-3 h-4 w-4 ${
+                      isActive ? "text-[#8B1A1A]" : "text-[#8B7B6F]"
                     }`}
-                    aria-hidden="true"
                   />
                   {item.name}
                 </Link>
@@ -113,118 +112,100 @@ export default function CompanyLayout({
           </nav>
         </div>
 
-        <div className="p-4 border-t border-stone-100">
-          <button 
+        <div className="p-4 border-t border-[#E3D8C4] bg-white">
+          <button
             onClick={handleLogout}
-            className="flex items-center w-full px-3 py-2 text-xs font-semibold text-stone-600 rounded-xl hover:bg-red-50 hover:text-red-600 transition-colors"
+            className="flex items-center w-full px-3 py-2 text-xs font-bold text-[#5E544A] hover:text-[#C85555] hover:bg-[#F8F5EC] rounded-xl transition-colors"
           >
-            <LogOut className="mr-3 h-4 w-4 text-stone-400" />
+            <LogOut className="mr-3 h-4 w-4 text-[#8B7B6F]" />
             Logout
           </button>
         </div>
       </aside>
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Topbar with z-10 so popups are in foreground */}
-        <header className="h-16 bg-white border-b border-stone-200 flex items-center justify-between px-6 flex-shrink-0 shadow-xs z-10 select-none">
-          <div className="flex items-center space-x-6">
-            <h1 className="text-base font-bold text-stone-900">
-              GGSIPU Placement Portal
-            </h1>
-            {/* Top Tabs */}
-            <nav className="hidden md:flex space-x-2">
-              {navItems.map((item) => {
-                const isActive = pathname === item.href;
-                return (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                      isActive
-                        ? "bg-orange-50 text-orange-600 border border-orange-200"
-                        : "text-stone-500 hover:text-stone-900 hover:bg-stone-50"
-                    }`}
-                  >
-                    {item.name}
-                  </Link>
-                );
-              })}
-            </nav>
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#F8F5EC]">
+        {/* Topbar */}
+        <header className="h-16 bg-white border-b border-[#E3D8C4] flex items-center justify-between px-8 flex-shrink-0 z-10">
+          <div className="flex items-center gap-2">
+            <h1 className="font-bold text-base text-[#1C1A1A]">GGSIPU Placement Portal</h1>
+            <span className="text-xs bg-[#F1E9D8] text-[#8B1A1A] border border-[#E3D8C4] px-2 py-0.5 rounded-full font-bold">
+              Recruiter
+            </span>
           </div>
 
-          <div className="flex items-center space-x-3">
-            {/* Notification Bell (Requirement 2) */}
+          <div className="flex items-center space-x-4">
+            {/* Notification Bell */}
             <div className="relative">
               <button
                 onClick={() => setShowNotifications(!showNotifications)}
-                className="relative p-2 rounded-xl border border-stone-200 text-stone-500 hover:bg-stone-50 hover:text-stone-700 transition-all"
+                className={`relative p-2 rounded-xl border transition-all ${
+                  showNotifications 
+                    ? 'bg-[#F1E9D8] text-[#8B1A1A] border-[#E3D8C4]' 
+                    : 'text-[#5E544A] hover:text-[#1C1A1A] hover:bg-[#F8F5EC] border-[#E3D8C4]'
+                }`}
                 title="Notifications"
               >
-                <Bell size={15} />
+                <Bell className="h-4 w-4" />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-orange-500 text-white text-[10px] font-bold flex items-center justify-center ring-2 ring-white">
+                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-[#8B1A1A] text-white text-[10px] font-bold flex items-center justify-center ring-2 ring-white">
                     {unreadCount}
                   </span>
                 )}
               </button>
 
+              {/* Notification Popover Dropdown */}
               {showNotifications && (
-                <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white border border-stone-200 rounded-2xl shadow-xl z-50 overflow-hidden animate-scale-in text-xs">
-                  <div className="p-4 border-b border-stone-100 flex items-center justify-between bg-stone-50/70">
-                    <div className="flex items-center gap-1.5 font-bold text-stone-900">
-                      <Bell size={13} className="text-orange-500" />
-                      <span>Notifications</span>
-                    </div>
+                <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white border border-[#E3D8C4] rounded-2xl shadow-xl z-50 overflow-hidden animate-scale-in">
+                  <div className="p-4 border-b border-[#E3D8C4] flex items-center justify-between bg-[#F8F5EC]">
+                    <h3 className="font-bold text-[#1C1A1A] text-xs">Notifications</h3>
                     <div className="flex items-center gap-2">
-                      {notifications.length > 0 && (
-                        <button
-                          onClick={handleClearAllNotifications}
-                          className="text-[11px] text-stone-500 hover:text-red-600 font-semibold"
-                        >
-                          Clear All
-                        </button>
-                      )}
-                      <button onClick={() => setShowNotifications(false)} className="text-stone-400 hover:text-stone-600">
+                      <button 
+                        onClick={handleClearAllNotifications}
+                        className="text-[11px] text-[#8B7B6F] hover:text-[#C85555] font-semibold flex items-center gap-1"
+                      >
+                        <Trash2 size={12} />
+                        <span>Clear all</span>
+                      </button>
+                      <button 
+                        onClick={() => setShowNotifications(false)}
+                        className="text-[#8B7B6F] hover:text-[#1C1A1A] ml-1"
+                      >
                         <X size={14} />
                       </button>
                     </div>
                   </div>
 
-                  <div className="max-h-80 overflow-y-auto divide-y divide-stone-100">
+                  <div className="max-h-80 overflow-y-auto divide-y divide-[#E3D8C4]">
                     {notifications.length > 0 ? (
-                      notifications.map((n: any) => (
+                      notifications.map(n => (
                         <div
                           key={n.id}
-                          className="p-3.5 hover:bg-stone-50 flex items-start justify-between gap-3 group transition-colors"
+                          className={`p-3.5 hover:bg-[#F8F5EC] transition-colors flex items-start gap-3 relative group ${
+                            n.unread ? 'bg-[#F1E9D8]/50' : ''
+                          }`}
                         >
-                          <Link
-                            href={n.link || '/company'}
-                            onClick={() => setShowNotifications(false)}
-                            className="flex items-start gap-3 flex-1 min-w-0"
-                          >
-                            <div className="w-8 h-8 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center shrink-0">
-                              <AlertCircle size={14} />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-bold text-stone-900">{n.title}</p>
-                              <p className="text-[11px] text-stone-500 mt-0.5 leading-relaxed">{n.desc}</p>
-                              <p className="text-[10px] text-orange-600 font-semibold mt-1">{n.time}</p>
-                            </div>
-                          </Link>
+                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 text-xs bg-[#F1E9D8] text-[#8B1A1A]`}>
+                            {n.type === 'offer' ? <Award size={14} /> : <AlertCircle size={14} />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold text-[#1C1A1A] truncate">{n.title}</p>
+                            <p className="text-[11px] text-[#5E544A] mt-0.5 leading-relaxed">{n.desc}</p>
+                            <p className="text-[10px] text-[#8B7B6F] mt-1">{n.time}</p>
+                          </div>
 
                           <button
                             onClick={(e) => handleDeleteNotification(e, n.id)}
-                            className="p-1.5 text-stone-300 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors shrink-0"
-                            title="Delete notification"
+                            className="opacity-0 group-hover:opacity-100 p-1 text-[#8B7B6F] hover:text-[#C85555] hover:bg-[#F8F5EC] rounded-lg transition-all"
+                            title="Delete"
                           >
-                            <Trash2 size={13} />
+                            <Trash2 size={12} />
                           </button>
                         </div>
                       ))
                     ) : (
-                      <div className="py-8 text-center text-xs text-stone-400">
-                        No notifications.
+                      <div className="py-8 text-center text-xs text-[#8B7B6F]">
+                        No active notifications.
                       </div>
                     )}
                   </div>
@@ -232,21 +213,15 @@ export default function CompanyLayout({
               )}
             </div>
 
-            <button 
-              onClick={handleLogout}
-              className="flex items-center gap-1 text-xs font-medium text-stone-500 hover:text-red-600 px-3 py-1.5 rounded-lg hover:bg-stone-50 transition-colors border border-stone-200"
-            >
-              <LogOut size={13} />
-              Logout
-            </button>
-            <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center text-green-700 font-bold text-xs border border-green-200">
+            {/* User Avatar */}
+            <div className="w-8 h-8 rounded-xl bg-[#F1E9D8] flex items-center justify-center text-[#4A7C59] font-bold text-xs border border-[#E3D8C4]">
               CO
             </div>
           </div>
         </header>
 
-        {/* Scrollable Content */}
-        <main className="flex-1 overflow-y-auto bg-[#FFFAF6]">
+        {/* Dynamic Page Content */}
+        <main className="flex-1 overflow-y-auto bg-[#F8F5EC]">
           {children}
         </main>
       </div>

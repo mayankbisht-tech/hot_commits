@@ -2,12 +2,14 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
 
-export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: Request, context: { params: any }) {
   try {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { id } = await params;
+    const rawParams = await context.params;
+    const id = rawParams?.id;
+
     let drive = await prisma.drive.findUnique({
       where: { id },
       include: {
@@ -17,7 +19,6 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     });
 
     if (!drive) {
-      // Graceful lookup if ID format differs
       drive = await prisma.drive.findFirst({
         include: { company: true, _count: { select: { applications: true } } }
       });
@@ -25,8 +26,19 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
     if (!drive) return NextResponse.json({ error: 'Drive not found' }, { status: 404 });
 
+    let parsedOpenings = 5;
+    let cleanedDescription = drive.description || '';
+
+    if (drive.description && drive.description.includes('__OPENINGS:')) {
+      const parts = drive.description.split('__OPENINGS:');
+      cleanedDescription = parts[0].trim();
+      parsedOpenings = parseInt(parts[1]) || 5;
+    }
+
     const parsedDrive = {
       ...drive,
+      description: cleanedDescription,
+      openings: parsedOpenings,
       status: drive.status.toLowerCase(),
       approvalStatus: drive.approvalStatus.toLowerCase(),
       branches: drive.branchesJson ? JSON.parse(drive.branchesJson) : [],
@@ -40,17 +52,18 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   }
 }
 
-export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function PUT(req: Request, context: { params: any }) {
   try {
     const user = await getCurrentUser();
     if (!user || (user.role !== 'TPO' && user.role !== 'COMPANY')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const { id } = await params;
+    const rawParams = await context.params;
+    const id = rawParams?.id;
+
     let drive = await prisma.drive.findUnique({ where: { id } });
     
-    // Fallback lookup if ID was from mock data (e.g. 'd7' -> find Amazon drive)
     if (!drive) {
       drive = await prisma.drive.findFirst({
         where: {
@@ -76,7 +89,13 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     if (body.location !== undefined) updateData.location = body.location;
     if (body.mode !== undefined) updateData.mode = body.mode;
     if (body.jobType !== undefined) updateData.jobType = body.jobType;
-    if (body.description !== undefined) updateData.description = body.description;
+
+    if (body.description !== undefined || body.openings !== undefined) {
+      const descText = (body.description !== undefined ? body.description : (drive.description || '')).split('__OPENINGS:')[0].trim();
+      const opCount = body.openings !== undefined ? Number(body.openings) : 5;
+      updateData.description = `${descText}\n__OPENINGS:${Math.max(1, opCount)}`;
+    }
+
     if (body.minCGPA !== undefined) updateData.minCGPA = Number(body.minCGPA);
     if (body.maxBacklogs !== undefined) updateData.maxBacklogs = Number(body.maxBacklogs);
     if (body.minClass10 !== undefined) updateData.minClass10 = Number(body.minClass10);
@@ -103,42 +122,75 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     const updatedDrive = await prisma.drive.update({
       where: { id: drive.id },
       data: updateData,
-      include: { company: { select: { name: true, tier: true } } }
+      include: {
+        company: { select: { name: true, tier: true } }
+      }
     });
 
-    return NextResponse.json({ drive: updatedDrive });
+    let parsedOpenings = 5;
+    let cleanedDescription = updatedDrive.description || '';
+
+    if (updatedDrive.description && updatedDrive.description.includes('__OPENINGS:')) {
+      const parts = updatedDrive.description.split('__OPENINGS:');
+      cleanedDescription = parts[0].trim();
+      parsedOpenings = parseInt(parts[1]) || 5;
+    }
+
+    return NextResponse.json({ 
+      drive: {
+        ...updatedDrive,
+        description: cleanedDescription,
+        openings: parsedOpenings,
+        status: updatedDrive.status.toLowerCase(),
+        approvalStatus: updatedDrive.approvalStatus.toLowerCase(),
+        branches: updatedDrive.branchesJson ? JSON.parse(updatedDrive.branchesJson) : [],
+        rounds: updatedDrive.roundsJson ? JSON.parse(updatedDrive.roundsJson) : [],
+        gradYears: updatedDrive.gradYearsJson ? JSON.parse(updatedDrive.gradYearsJson) : [],
+      }
+    });
   } catch (error: any) {
-    console.error('Error in PUT /api/drives/[id]:', error);
+    console.error('Update drive error:', error);
     return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
   }
 }
 
-export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: Request, context: { params: any }) {
   try {
     const user = await getCurrentUser();
     if (!user || (user.role !== 'TPO' && user.role !== 'COMPANY')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const { id } = await params;
-    let drive = await prisma.drive.findUnique({ where: { id } });
+    const rawParams = await context.params;
+    const id = rawParams?.id;
+
+    const drive = await prisma.drive.findUnique({ where: { id } });
     if (!drive) return NextResponse.json({ error: 'Drive not found' }, { status: 404 });
 
     if (user.role === 'COMPANY' && drive.companyId !== user.profileId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Clean up relations first in transaction
-    await prisma.$transaction([
-      prisma.stageEntry.deleteMany({ where: { application: { driveId: id } } }),
-      prisma.offer.deleteMany({ where: { driveId: id } }),
-      prisma.application.deleteMany({ where: { driveId: id } }),
-      prisma.drive.delete({ where: { id } }),
-    ]);
+    // Delete associated applications and offers
+    await prisma.stageEntry.deleteMany({
+      where: { application: { driveId: id } }
+    }).catch(() => {});
+
+    await prisma.offer.deleteMany({
+      where: { driveId: id }
+    }).catch(() => {});
+
+    await prisma.application.deleteMany({
+      where: { driveId: id }
+    }).catch(() => {});
+
+    await prisma.drive.delete({
+      where: { id }
+    });
 
     return NextResponse.json({ success: true, message: 'Drive deleted successfully' });
   } catch (error: any) {
-    console.error('Error in DELETE /api/drives/[id]:', error);
+    console.error('Delete drive error:', error);
     return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
   }
 }

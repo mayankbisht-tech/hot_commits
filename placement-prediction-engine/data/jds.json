@@ -1,0 +1,460 @@
+[
+  {
+    "jd_id": "JD_TIER1_SWE_01",
+    "company_id": "COMP_GOOGLE",
+    "company_name": "Google",
+    "role_title": "Software Development Engineer",
+    "role_category": "Software Engineering",
+    "eligibility": {
+      "min_cgpa": 8.0,
+      "max_active_backlogs_allowed": 0,
+      "eligible_branches": [
+        "CSE",
+        "IT",
+        "AI-DS",
+        "ECE"
+      ],
+      "eligible_degree_types": [
+        "B.Tech",
+        "BE"
+      ]
+    },
+    "required_skills": {
+      "must_have": [
+        "C++",
+        "Python",
+        "SQL",
+        "Git"
+      ],
+      "good_to_have": [
+        "Docker",
+        "Kubernetes",
+        "AWS",
+        "FastAPI"
+      ]
+    },
+    "experience_requirement": {
+      "min_internship_months_preferred": 3,
+      "fresher_eligible": true
+    },
+    "company_metadata": {
+      "sector": "Product",
+      "company_size": "Enterprise",
+      "historical_hire_rate": 0.08,
+      "avg_hired_cgpa": 8.9
+    }
+  },
+  {
+    "jd_id": "JD_FINTECH_BACKEND_02",
+    "company_id": "COMP_RAZORPAY",
+    "company_name": "Razorpay",
+    "role_title": "Backend Software Engineer",
+    "role_category": "Backend Engineering",
+    "eligibility": {
+      "min_cgpa": 7.5,
+      "max_active_backlogs_allowed": 0,
+      "eligible_branches": [
+        "CSE",
+        "IT",
+        "ECE",
+        "AI-DS"
+      ],
+      "eligible_degree_types": [
+        "B.Tech",
+        "BE",
+        "MCA"
+      ]
+    },
+    "required_skills": {
+      "must_have": [
+        "Java",
+        "Spring Boot",
+        "MySQL",
+        "Git"
+      ],
+      "good_to_have": [
+        "Redis",
+        "Docker",
+        "AWS",
+        "CI/CD"
+      ]
+    },
+    "experience_requirement": {
+      "min_internship_months_preferred": 2,
+      "fresher_eligible": true
+    },
+    "company_metadata": {
+      "sector": "Fintech",
+      "company_size": "Mid-Size",
+      "historical_hire_rate": 0.14,
+      "avg_hired_cgpa": 8.2
+    }
+  },
+  {
+    "jd_id": "JD_AI_STARTUP_03",
+    "company_id": "COMP_NEXUS_AI",
+    "company_name": "Nexus AI",
+    "role_title": "Machine Learning Engineer",
+    "role_category": "Data Science & ML",
+    "eligibility": {
+      "min_cgpa": 7.0,
+      "max_active_backlogs_allowed": 0,
+      "eligible_branches": [
+        "CSE",
+        "IT",
+        "AI-DS"
+      ],
+      "eligible_degree_types": [
+        "B.Tech",
+        "BE",
+        "MCA"
+      ]
+    },
+    "required_skills": {
+      "must_have": [
+        "Python",
+        "PyTorch",
+        "Scikit-learn",
+        "Pandas"
+      ],
+      "good_to_have": [
+        "Docker",
+        "FastAPI",
+        "AWS",
+        "XGBoost"
+      ]
+    },
+    "experience_requirement": {
+      "min_internship_months_preferred": 2,
+      "fresher_eligible": true
+    },
+    "company_metadata": {
+      "sector": "AI / ML",
+      "company_size": "Startup",
+      "historical_hire_rate": 0.1,
+      "avg_hired_cgpa": 8.3
+    }
+  },
+  {
+    "jd_id": "JD_FRONTEND_DEV_04",
+    "company_id": "COMP_SWIGGY",
+    "company_name": "Swiggy",
+    "role_title": "Frontend Engineer",
+    "role_category": "Frontend Engineering",
+    "eligibility": {
+      "min_cgpa": 6.8,
+      "max_active_backlogs_allowed": 0,
+      "eligible_branches": [
+        "CSE",
+        "IT",
+        "ECE",
+        "AI-DS",
+        "EEE"
+      ],
+      "eligible_degree_types": [
+        "B.Tech",
+        "BE",
+        "MCA"
+      ]
+    },
+    "required_skills": {
+      "must_have": [
+        "JavaScript",
+        "TypeScript",
+        "React"
+      ],
+      "good_to_have": [
+        "Node.js",
+        "Vue",
+        "Git",
+        "Docker"
+      ]
+    },
+    "experience_requirement": {
+      "min_internship_months_preferred": 1,
+      "fresher_eligible": true
+    },
+    "company_metadata": {
+      "sector": "E-Commerce",
+      "company_size": "Mid-Size",
+      "historical_hire_rate": 0.18,
+      "avg_hired_cgpa": 7.9
+    }
+  },
+  {
+    "jd_id": "JD_SERVICES_MNC_05",
+    "company_id": "COMP_TCS",
+    "company_name": "TCS Digital",
+    "role_title": "Systems Developer",
+    "role_category": "Software Engineering",
+    "eligibility": {
+      "min_cgpa": 6.0,
+      "max_active_backlogs_allowed": 1,
+      "eligible_branches": [
+        "CSE",
+        "IT",
+        "AI-DS",
+        "ECE",
+        "EEE",
+        "Mechanical",
+        "Civil",
+        "Chemical"
+      ],
+      "eligible_degree_types": [
+        "B.Tech",
+        "BE",
+        "MCA"
+      ]
+    },
+    "required_skills": {
+      "must_have": [
+        "Python",
+        "SQL"
+      ],
+      "good_to_have": [
+        "Java",
+        "React",
+        "Git"
+      ]
+    },
+    "experience_requirement": {
+      "min_internship_months_preferred": 0,
+      "fresher_eligible": true
+    },
+    "company_metadata": {
+      "sector": "IT Services",
+      "company_size": "Enterprise",
+      "historical_hire_rate": 0.38,
+      "avg_hired_cgpa": 7.3
+    }
+  },
+  {
+    "jd_id": "JD_CLOUD_DEVOPS_06",
+    "company_id": "COMP_ORACLE",
+    "company_name": "Oracle Cloud",
+    "role_title": "Cloud DevOps Engineer",
+    "role_category": "DevOps & Cloud",
+    "eligibility": {
+      "min_cgpa": 7.2,
+      "max_active_backlogs_allowed": 0,
+      "eligible_branches": [
+        "CSE",
+        "IT",
+        "ECE",
+        "AI-DS"
+      ],
+      "eligible_degree_types": [
+        "B.Tech",
+        "BE"
+      ]
+    },
+    "required_skills": {
+      "must_have": [
+        "Linux",
+        "Docker",
+        "Kubernetes",
+        "AWS"
+      ],
+      "good_to_have": [
+        "Python",
+        "CI/CD",
+        "Terraform",
+        "Go"
+      ]
+    },
+    "experience_requirement": {
+      "min_internship_months_preferred": 2,
+      "fresher_eligible": true
+    },
+    "company_metadata": {
+      "sector": "Enterprise Software",
+      "company_size": "Enterprise",
+      "historical_hire_rate": 0.12,
+      "avg_hired_cgpa": 8.0
+    }
+  },
+  {
+    "jd_id": "JD_CORE_EMBEDDED_07",
+    "company_id": "COMP_QUALCOMM",
+    "company_name": "Qualcomm",
+    "role_title": "Embedded Systems Engineer",
+    "role_category": "Hardware & Embedded",
+    "eligibility": {
+      "min_cgpa": 7.5,
+      "max_active_backlogs_allowed": 0,
+      "eligible_branches": [
+        "ECE",
+        "EEE",
+        "CSE"
+      ],
+      "eligible_degree_types": [
+        "B.Tech",
+        "BE"
+      ]
+    },
+    "required_skills": {
+      "must_have": [
+        "C",
+        "C++",
+        "Linux"
+      ],
+      "good_to_have": [
+        "Python",
+        "Git",
+        "Docker"
+      ]
+    },
+    "experience_requirement": {
+      "min_internship_months_preferred": 2,
+      "fresher_eligible": true
+    },
+    "company_metadata": {
+      "sector": "Semiconductor",
+      "company_size": "Enterprise",
+      "historical_hire_rate": 0.11,
+      "avg_hired_cgpa": 8.4
+    }
+  },
+  {
+    "jd_id": "JD_FULLSTACK_STARTUP_08",
+    "company_id": "COMP_GROWW",
+    "company_name": "Groww",
+    "role_title": "Full Stack Engineer",
+    "role_category": "Full Stack Development",
+    "eligibility": {
+      "min_cgpa": 7.0,
+      "max_active_backlogs_allowed": 0,
+      "eligible_branches": [
+        "CSE",
+        "IT",
+        "AI-DS",
+        "ECE"
+      ],
+      "eligible_degree_types": [
+        "B.Tech",
+        "BE",
+        "MCA"
+      ]
+    },
+    "required_skills": {
+      "must_have": [
+        "React",
+        "Node.js",
+        "PostgreSQL",
+        "JavaScript"
+      ],
+      "good_to_have": [
+        "Redis",
+        "Docker",
+        "AWS",
+        "TypeScript"
+      ]
+    },
+    "experience_requirement": {
+      "min_internship_months_preferred": 2,
+      "fresher_eligible": true
+    },
+    "company_metadata": {
+      "sector": "Fintech",
+      "company_size": "Mid-Size",
+      "historical_hire_rate": 0.16,
+      "avg_hired_cgpa": 8.0
+    }
+  },
+  {
+    "jd_id": "JD_MASS_RECRUITER_09",
+    "company_id": "COMP_INFOSYS",
+    "company_name": "Infosys Specialist Programmer",
+    "role_title": "Associate Specialist Programmer",
+    "role_category": "Software Engineering",
+    "eligibility": {
+      "min_cgpa": 6.5,
+      "max_active_backlogs_allowed": 0,
+      "eligible_branches": [
+        "CSE",
+        "IT",
+        "AI-DS",
+        "ECE",
+        "EEE",
+        "Mechanical",
+        "Civil",
+        "Chemical"
+      ],
+      "eligible_degree_types": [
+        "B.Tech",
+        "BE",
+        "MCA"
+      ]
+    },
+    "required_skills": {
+      "must_have": [
+        "Java",
+        "Python",
+        "SQL"
+      ],
+      "good_to_have": [
+        "Spring Boot",
+        "React",
+        "Docker"
+      ]
+    },
+    "experience_requirement": {
+      "min_internship_months_preferred": 0,
+      "fresher_eligible": true
+    },
+    "company_metadata": {
+      "sector": "IT Services",
+      "company_size": "Enterprise",
+      "historical_hire_rate": 0.28,
+      "avg_hired_cgpa": 7.5
+    }
+  },
+  {
+    "jd_id": "JD_DATA_ANALYST_10",
+    "company_id": "COMP_DELOITTE",
+    "company_name": "Deloitte USI",
+    "role_title": "Analyst - Technology & Analytics",
+    "role_category": "Analytics & Consulting",
+    "eligibility": {
+      "min_cgpa": 6.8,
+      "max_active_backlogs_allowed": 0,
+      "eligible_branches": [
+        "CSE",
+        "IT",
+        "AI-DS",
+        "ECE",
+        "EEE",
+        "Mechanical",
+        "Civil",
+        "Chemical"
+      ],
+      "eligible_degree_types": [
+        "B.Tech",
+        "BE",
+        "MCA"
+      ]
+    },
+    "required_skills": {
+      "must_have": [
+        "SQL",
+        "Python",
+        "Pandas"
+      ],
+      "good_to_have": [
+        "MySQL",
+        "Tableau",
+        "AWS"
+      ]
+    },
+    "experience_requirement": {
+      "min_internship_months_preferred": 0,
+      "fresher_eligible": true
+    },
+    "company_metadata": {
+      "sector": "Consulting",
+      "company_size": "Enterprise",
+      "historical_hire_rate": 0.25,
+      "avg_hired_cgpa": 7.6
+    }
+  }
+]

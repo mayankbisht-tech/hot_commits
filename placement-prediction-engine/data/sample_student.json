@@ -1,0 +1,78 @@
+{
+  "student_id": "STU_2025_0001",
+  "academic": {
+    "cgpa": 8.89,
+    "tenth_percentage": 87.7,
+    "twelfth_percentage": 93.3,
+    "backlog_count": 0,
+    "active_backlog_count": 0,
+    "degree_type": "B.Tech",
+    "branch": "ECE",
+    "graduation_year": 2025
+  },
+  "experience": {
+    "internship_count": 0,
+    "total_internship_months": 0,
+    "relevant_internship_count": 0,
+    "work_experience_count": 0,
+    "total_work_experience_months": 0,
+    "relevant_work_experience_months": 0
+  },
+  "projects": {
+    "project_count": 4,
+    "major_project_count": 1,
+    "relevant_project_count": 0,
+    "deployed_project_count": 0,
+    "github_project_count": 4,
+    "has_ml_project": true,
+    "has_web_project": false,
+    "has_final_year_project": true
+  },
+  "skills": {
+    "programming_languages": [
+      "Rust",
+      "Python",
+      "JavaScript"
+    ],
+    "frameworks": [
+      "Express",
+      "Angular"
+    ],
+    "databases": [],
+    "cloud": [
+      "GCP"
+    ],
+    "devops": [
+      "Docker"
+    ],
+    "machine_learning": [
+      "HuggingFace",
+      "PyTorch"
+    ]
+  },
+  "coding": {
+    "leetcode_problems_solved": 538,
+    "leetcode_data_available": true,
+    "codeforces_rating": null,
+    "hackathon_count": 1,
+    "coding_competition_count": 0
+  },
+  "certifications": {
+    "certification_count": 2,
+    "relevant_certification_count": 0,
+    "has_cloud_certification": true,
+    "has_ml_certification": false
+  },
+  "online_presence": {
+    "has_github": true,
+    "has_linkedin": true,
+    "has_portfolio": true
+  },
+  "resume_metadata": {
+    "resume_word_count": 577,
+    "resume_page_count": 1,
+    "has_projects_section": true,
+    "has_experience_section": false,
+    "has_achievements_section": true
+  }
+}

@@ -8,7 +8,6 @@ import {
 } from 'lucide-react';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 import { fetcher, downloadCSV } from '@/lib/api-client';
-import { placementStats as fallbackStats } from '@/lib/data';
 
 interface BranchStat {
   branch: string;
@@ -25,7 +24,17 @@ export default function ReportsAnalyticsPage() {
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
   const [showCompiledModal, setShowCompiledModal] = useState(false);
 
-  const stats = statsData || fallbackStats;
+  const stats = statsData || {
+    overallPercentage: 0,
+    totalPlaced: 0,
+    totalEligible: 0,
+    avgPackage: 0,
+    highestPackage: 0,
+    activeDrivesCount: 0,
+    branchStats: [],
+    monthlyOffers: [],
+    tierBreakdown: [],
+  };
 
   // Dynamic current academic session calculations
   const currentYear = new Date().getFullYear();
@@ -52,7 +61,7 @@ export default function ReportsAnalyticsPage() {
     { name: '> 25 LPA (Dream)', count: 2 },
   ];
 
-  const monthlyOffers = statsData?.monthlyOffers || fallbackStats.monthlyOffers;
+  const monthlyOffers = statsData?.monthlyOffers || [];
 
   const handleExportCSV = () => {
     let csv = 'Branch,Eligible,Placed,Placed %,Avg CTC,Median CTC,Highest CTC\n';

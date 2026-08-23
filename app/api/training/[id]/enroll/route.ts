@@ -65,6 +65,51 @@ export async function POST(
       },
     }));
 
+    // Auto-update student skills in profile when enrolling in training
+    try {
+      const student = await prisma.student.findUnique({ where: { id: studentId } });
+      if (student) {
+        let existingSkills: string[] = [];
+        try {
+          existingSkills = student.skillsJson ? JSON.parse(student.skillsJson) : [];
+        } catch {
+          existingSkills = [];
+        }
+
+        // Extract skills from program tagsJson, title, and description
+        const tags: string[] = program.tagsJson ? JSON.parse(program.tagsJson) : [];
+        const candidateText = `${program.title} ${program.description || ''} ${tags.join(' ')}`;
+        
+        // Common skills list to detect from text
+        const knownSkills = [
+          'Python', 'SQL', 'Java', 'C++', 'JavaScript', 'TypeScript', 'React', 'Node.js',
+          'Express', 'Docker', 'Kubernetes', 'AWS', 'GCP', 'Azure', 'Git', 'Linux',
+          'Machine Learning', 'Data Structures', 'Algorithms', 'System Design', 'Django',
+          'Spring Boot', 'MongoDB', 'PostgreSQL', 'HTML', 'CSS', 'Tailwind', 'REST API'
+        ];
+
+        const newlyAcquiredSkills = new Set<string>(tags);
+        for (const skill of knownSkills) {
+          if (candidateText.toLowerCase().includes(skill.toLowerCase())) {
+            newlyAcquiredSkills.add(skill);
+          }
+        }
+
+        if (newlyAcquiredSkills.size > 0) {
+          const skillSet = new Set(existingSkills);
+          newlyAcquiredSkills.forEach(s => skillSet.add(s));
+          const updatedSkills = Array.from(skillSet);
+
+          await prisma.student.update({
+            where: { id: studentId },
+            data: { skillsJson: JSON.stringify(updatedSkills) }
+          });
+        }
+      }
+    } catch (e) {
+      console.error('Error auto-updating student profile skills on training enrollment:', e);
+    }
+
     return NextResponse.json({ success: true, enrollment }, { status: 201 });
   } catch (error: any) {
     console.error('Error enrolling in training:', error);

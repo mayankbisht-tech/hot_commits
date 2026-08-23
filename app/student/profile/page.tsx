@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import useSWR, { mutate } from "swr";
+import Link from "next/link";
 import { 
   User, Mail, Phone, BookOpen, Award, Edit3, 
   CheckCircle2, FileText, Star, Plus, Trash2, X, Check, Loader2, Sparkles, AlertCircle, Lock
@@ -35,22 +36,15 @@ export default function StudentProfilePage() {
   const [skills, setSkills] = useState<string[]>([]);
   const [newSkillInput, setNewSkillInput] = useState("");
 
-  // Certifications
-  const [certifications, setCertifications] = useState<Array<{ name: string; issuer: string; year: string; badge: string }>>([
-    { name: "AWS Cloud Practitioner", issuer: "Amazon Web Services", year: "2026", badge: "AWS" },
-    { name: "Meta Frontend Developer", issuer: "Meta / Coursera", year: "2026", badge: "META" },
-  ]);
+  // Certifications (User added or verified)
+  const [certifications, setCertifications] = useState<Array<{ name: string; issuer: string; year: string; badge: string }>>([]);
   const [newCertName, setNewCertName] = useState("");
   const [newCertIssuer, setNewCertIssuer] = useState("");
   const [newCertYear, setNewCertYear] = useState("2026");
   const [showAddCertModal, setShowAddCertModal] = useState(false);
 
-  // Achievements
-  const [achievements, setAchievements] = useState<string[]>([
-    "1st Place — Smart India Hackathon 2026",
-    "Google Summer of Code (GSoC) Contributor",
-    "Dean's Honor List — 6 Consecutive Semesters",
-  ]);
+  // Achievements (User added)
+  const [achievements, setAchievements] = useState<string[]>([]);
   const [newAchievementInput, setNewAchievementInput] = useState("");
   const [showAddAchievementModal, setShowAddAchievementModal] = useState(false);
 
@@ -380,6 +374,16 @@ export default function StudentProfilePage() {
                   {studentData?.student?.placementStatus || 'Active Candidate'}
                 </span>
               </div>
+            </div>
+
+            <div className="pt-2">
+              <Link
+                href="/student/predictions"
+                className="w-full py-2 px-3 bg-[#8B1A1A] hover:bg-[#A63030] text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-2xs"
+              >
+                <Sparkles size={13} />
+                <span>Upload Resume & Run AI Predictor →</span>
+              </Link>
             </div>
           </div>
         </div>

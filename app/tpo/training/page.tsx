@@ -8,7 +8,6 @@ import {
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { fetcher, downloadCSV, apiCreateTraining } from '@/lib/api-client';
-import { trainingPrograms as fallbackPrograms } from '@/lib/data';
 
 interface TrainingItem {
   id: string;
@@ -47,19 +46,7 @@ export default function TrainingAnalyticsPage() {
 
   const rawPrograms: TrainingItem[] = Array.isArray(programsData) 
     ? programsData 
-    : programsData?.programs || fallbackPrograms.map(p => ({
-        id: p.id,
-        title: p.title,
-        type: p.type.toUpperCase(),
-        date: p.date,
-        time: p.time,
-        venue: p.venue,
-        mode: p.mode,
-        capacity: p.capacity,
-        facilitator: p.facilitator,
-        tags: p.tags,
-        _count: { enrollments: p.registeredCount }
-      }));
+    : programsData?.programs || [];
 
   const programs = [...rawPrograms].sort((a, b) => {
     const timeA = new Date(a.date).getTime();

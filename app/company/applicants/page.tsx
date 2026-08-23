@@ -146,7 +146,6 @@ function CompanyApplicantsContent() {
       APPLIED: "SHORTLISTED",
       SHORTLISTED: "INTERVIEW_SCHEDULED",
       INTERVIEW_SCHEDULED: "OFFER_EXTENDED",
-      OFFER_EXTENDED: "OFFER_ACCEPTED",
     };
 
     const nextStatus = stageFlow[app.status?.toUpperCase() || "APPLIED"];
@@ -515,7 +514,17 @@ function CompanyApplicantsContent() {
                       <span className="hidden lg:inline">Resume</span>
                     </button>
 
-                    {app.status !== 'OFFER_ACCEPTED' && (
+                    {app.status === 'OFFER_EXTENDED' ? (
+                      <span className="px-2.5 py-1 bg-[#FFF3E0] text-[#E65100] border border-[#FFE0B2] rounded-lg text-[11px] font-bold flex items-center gap-1 shadow-2xs">
+                        <Clock size={11} />
+                        <span>Awaiting Student Response</span>
+                      </span>
+                    ) : app.status === 'OFFER_ACCEPTED' ? (
+                      <span className="px-2.5 py-1 bg-[#EBF7EE] text-[#2E7D32] border border-[#C8E6C9] rounded-lg text-[11px] font-bold flex items-center gap-1 shadow-2xs">
+                        <CheckCircle2 size={11} />
+                        <span>Offer Accepted & Placed</span>
+                      </span>
+                    ) : (
                       <button
                         disabled={isProcessing}
                         onClick={() => handleAdvanceCandidate(app)}

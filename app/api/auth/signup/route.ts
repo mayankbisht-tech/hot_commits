@@ -67,7 +67,7 @@ export async function POST(req: Request) {
             placementStatus: 'UNPLACED',
             dreamEligible: cgpa >= 8.5,
             resumeVerified: false,
-            skillsJson: JSON.stringify(body.skills && body.skills.length > 0 ? body.skills : ['React.js', 'Node.js', 'Problem Solving']),
+            skillsJson: JSON.stringify(body.skills && body.skills.length > 0 ? body.skills : []),
           }
         });
         profileId = student.id;

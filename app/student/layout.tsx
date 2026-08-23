@@ -56,6 +56,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
     { name: 'Dashboard', href: '/student' },
     { name: 'Drives', href: '/student/drives' },
     { name: 'Applications', href: '/student/applications' },
+    { name: 'AI Predictor', href: '/student/predictions' },
     { name: 'Training', href: '/student/training' },
     { name: 'Profile', href: '/student/profile' },
   ];

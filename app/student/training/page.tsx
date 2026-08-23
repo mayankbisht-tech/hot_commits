@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import useSWR, { mutate } from 'swr';
+import { useSearchParams } from 'next/navigation';
 import { 
   BookOpen, Calendar, MapPin, Users, CheckCircle, Clock, 
-  Brain, MessageSquare, Award, Loader2, CheckCircle2, X, AlertCircle 
+  Brain, MessageSquare, Award, Loader2, CheckCircle2, X, AlertCircle, Sparkles, Filter
 } from 'lucide-react';
 import { fetcher } from '@/lib/api-client';
 
@@ -27,11 +28,42 @@ interface TrainingProgramItem {
 }
 
 export default function TrainingProgramsPage() {
+  const searchParams = useSearchParams();
+  const initialSkill = searchParams ? (searchParams.get('skill') || searchParams.get('search') || '') : '';
+  const targetProgramId = searchParams ? searchParams.get('programId') : null;
+  const [selectedSkill, setSelectedSkill] = useState(initialSkill);
+
+  useEffect(() => {
+    if (initialSkill) {
+      setSelectedSkill(initialSkill);
+    }
+  }, [initialSkill]);
+
   const { data: programsData, isLoading } = useSWR<any>(
     '/api/training', 
     fetcher, 
     { refreshInterval: 2000 }
   );
+
+  // Auto-scroll smooth to exact matching training program card on load
+  useEffect(() => {
+    if (!isLoading && (targetProgramId || selectedSkill)) {
+      const timer = setTimeout(() => {
+        let el: HTMLElement | null = null;
+        if (targetProgramId) {
+          el = document.getElementById(`program-${targetProgramId}`);
+        }
+        if (!el && selectedSkill) {
+          const matchEl = document.querySelector('[data-matched-skill="true"]');
+          if (matchEl) el = matchEl as HTMLElement;
+        }
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 400);
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading, targetProgramId, selectedSkill]);
 
   const [activeTab, setActiveTab] = useState('All');
   const [viewMode, setViewMode] = useState<'programs' | 'schedule'>('programs');
@@ -44,18 +76,37 @@ export default function TrainingProgramsPage() {
 
   const filterTabs = ['All', 'Technical', 'Aptitude', 'Soft Skills', 'Certification'];
 
-  const filteredPrograms = programs
-    .filter(p => {
-      if (activeTab === 'All') return true;
-      const typeUpper = p.type?.toUpperCase();
-      if (activeTab === 'Technical') return typeUpper === 'TECHNICAL';
-      if (activeTab === 'Aptitude') return typeUpper === 'APTITUDE';
-      if (activeTab === 'Soft Skills') return typeUpper === 'SOFT_SKILLS';
-      if (activeTab === 'Certification') return typeUpper === 'CERTIFICATION';
-      return true;
-    })
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  // Check matching programs for selectedSkill
+  const query = selectedSkill.toLowerCase().trim();
+  const matchingSkillPrograms = selectedSkill
+    ? programs.filter(p => {
+        const tags = Array.isArray(p.tags) ? p.tags.join(' ').toLowerCase() : '';
+        return (
+          p.title.toLowerCase().includes(query) ||
+          (p.description || '').toLowerCase().includes(query) ||
+          tags.includes(query)
+        );
+      })
+    : [];
 
+  const hasMatchingSkillPrograms = selectedSkill ? matchingSkillPrograms.length > 0 : true;
+
+  // If no program exists for skill, display all programs normally below notice
+  const displayPrograms = selectedSkill
+    ? hasMatchingSkillPrograms
+      ? matchingSkillPrograms
+      : programs
+    : programs.filter(p => {
+        if (activeTab === 'All') return true;
+        const typeUpper = p.type?.toUpperCase();
+        if (activeTab === 'Technical') return typeUpper === 'TECHNICAL';
+        if (activeTab === 'Aptitude') return typeUpper === 'APTITUDE';
+        if (activeTab === 'Soft Skills') return typeUpper === 'SOFT_SKILLS';
+        if (activeTab === 'Certification') return typeUpper === 'CERTIFICATION';
+        return true;
+      });
+
+  const sortedPrograms = [...displayPrograms].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   const enrolledPrograms = programs.filter(p => p.enrolledByMe).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   const showToast = (msg: string) => {
@@ -169,6 +220,43 @@ export default function TrainingProgramsPage() {
         </div>
       </div>
 
+      {/* Active Skill Filter Banner */}
+      {selectedSkill && (
+        <div className={`p-4 border rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 text-xs animate-fade-in ${
+          hasMatchingSkillPrograms
+            ? 'bg-[#F1E9D8] border-[#E3D8C4]'
+            : 'bg-[#FFF3E0] border-[#FFE0B2]'
+        }`}>
+          <div className="flex items-start gap-2.5">
+            <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
+              hasMatchingSkillPrograms ? 'bg-[#8B1A1A] text-white' : 'bg-[#E65100] text-white'
+            }`}>
+              {hasMatchingSkillPrograms ? <Sparkles size={16} /> : <AlertCircle size={16} />}
+            </div>
+            <div>
+              <h3 className="font-bold text-[#1C1A1A] text-sm">
+                {hasMatchingSkillPrograms
+                  ? `Target Training Program Found for "${selectedSkill}" (${matchingSkillPrograms.length} Workshop)`
+                  : `No Dedicated Training Program Found for "${selectedSkill}"`}
+              </h3>
+              <p className="text-[#5E544A] text-xs mt-0.5">
+                {hasMatchingSkillPrograms
+                  ? `Enroll in the highlighted workshop below to update your student profile and boost your placement probability score.`
+                  : `No workshop is currently scheduled specifically for "${selectedSkill}". Below are all available active training programs you can explore:`}
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => setSelectedSkill('')}
+            className="px-3.5 py-1.5 bg-white hover:bg-[#F8F5EC] text-[#5E544A] border border-[#E3D8C4] rounded-xl font-bold flex items-center gap-1.5 transition-all shrink-0"
+          >
+            <X size={13} />
+            <span>Show All Programs</span>
+          </button>
+        </div>
+      )}
+
       {viewMode === 'programs' ? (
         <>
           {/* Filter Tabs */}
@@ -193,19 +281,34 @@ export default function TrainingProgramsPage() {
             <div className="p-16 text-center text-xs text-[#8B7B6F] flex items-center justify-center gap-2">
               <Loader2 size={16} className="animate-spin text-[#8B1A1A]" /> Loading training schedule...
             </div>
-          ) : filteredPrograms.length > 0 ? (
+          ) : sortedPrograms.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {filteredPrograms.map((p) => {
+              {sortedPrograms.map((p) => {
                 const regCount = p.enrollmentCount ?? p._count?.enrollments ?? p.registeredCount ?? 0;
                 const capacity = p.capacity || 100;
                 const capacityPct = Math.min(100, Math.round((regCount / capacity) * 100));
                 const isFull = regCount >= capacity;
                 const isProcessing = enrollingId === p.id;
 
+                const isMatchForSkill = Boolean(
+                  selectedSkill &&
+                  (
+                    p.title.toLowerCase().includes(query) ||
+                    (p.description || '').toLowerCase().includes(query) ||
+                    (Array.isArray(p.tags) ? p.tags.join(' ').toLowerCase() : '').includes(query)
+                  )
+                );
+
                 return (
                   <div
                     key={p.id}
-                    className="bg-white rounded-2xl border border-[#E3D8C4] p-5 shadow-card flex flex-col justify-between space-y-4 transition-all hover:shadow-md"
+                    id={`program-${p.id}`}
+                    data-matched-skill={isMatchForSkill ? 'true' : 'false'}
+                    className={`rounded-2xl p-5 shadow-card flex flex-col justify-between space-y-4 transition-all hover:shadow-lg ${
+                      isMatchForSkill
+                        ? 'bg-[#FFFBF0] border-2 border-[#8B1A1A] ring-4 ring-[#8B1A1A]/30 ring-offset-2'
+                        : 'bg-white border border-[#E3D8C4]'
+                    }`}
                   >
                     <div>
                       <div className="flex justify-between items-start gap-2">
@@ -214,7 +317,14 @@ export default function TrainingProgramsPage() {
                             {getTypeIcon(p.type)}
                           </div>
                           <div>
-                            <h3 className="font-bold text-[#1C1A1A] text-sm">{p.title}</h3>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h3 className="font-bold text-[#1C1A1A] text-sm">{p.title}</h3>
+                              {isMatchForSkill && (
+                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-[#8B1A1A] text-white flex items-center gap-1 shadow-xs animate-pulse">
+                                  <Sparkles size={11} /> TARGET SKILL PROGRAM
+                                </span>
+                              )}
+                            </div>
                             <p className="text-[11px] text-[#5E544A] font-semibold">{p.facilitator}</p>
                           </div>
                         </div>

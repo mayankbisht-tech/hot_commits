@@ -238,13 +238,21 @@ export default function ApplicantPoolPage() {
                       )}
                     </td>
                     <td className="py-3 px-4">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
-                        student.placementStatus?.toUpperCase() === 'PLACED' 
-                          ? 'bg-[#F1E9D8] text-[#4A7C59] border border-[#E3D8C4]' 
-                          : 'bg-[#F8F5EC] text-[#5E544A] border border-[#E3D8C4]'
-                      }`}>
-                        {student.placementStatus || 'UNPLACED'}
-                      </span>
+                      {(() => {
+                        const isPlaced = student.placementStatus?.toUpperCase() === 'PLACED';
+                        const hasPendingOffer = student.offers?.some((o: any) => o.status === 'PENDING' || o.status === 'OFFER_EXTENDED');
+                        return (
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                            isPlaced 
+                              ? 'bg-[#EBF7EE] text-[#2E7D32] border border-[#C8E6C9]' 
+                              : hasPendingOffer
+                              ? 'bg-[#FFF3E0] text-[#E65100] border border-[#FFE0B2]'
+                              : 'bg-[#F8F5EC] text-[#5E544A] border border-[#E3D8C4]'
+                          }`}>
+                            {isPlaced ? 'PLACED ✓' : hasPendingOffer ? 'OFFER PENDING (Waiting Student)' : (student.placementStatus || 'UNPLACED')}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="py-3 px-4">
                       {student.resumeVerified ? (

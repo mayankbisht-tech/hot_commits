@@ -1,10 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import useSWR, { mutate } from 'swr';
+import Link from 'next/link';
 import { 
   Building2, Clock, CheckCircle2, XCircle, AlertCircle, 
-  Award, ShieldCheck, ArrowRight, Loader2, FileText, ChevronDown, ChevronUp
+  Award, ShieldCheck, ArrowRight, Loader2, FileText, ChevronDown, ChevronUp,
+  Sparkles, BookOpen, Target, AlertTriangle
 } from 'lucide-react';
 import { fetcher } from '@/lib/api-client';
 
@@ -12,6 +14,10 @@ interface ApplicationItem {
   id: string;
   status: string;
   appliedOn: string;
+  placementProbability?: number;
+  missingSkills?: string[];
+  missingSkillsDetailed?: { skill: string; programId: string | null }[];
+  mlEligible?: boolean;
   drive: {
     id: string;
     role: string;
@@ -40,11 +46,31 @@ export default function StudentApplicationsPage() {
   const [activeTab, setActiveTab] = useState('All');
   const [processingId, setProcessingId] = useState<string | null>(null);
   
-  // Collapsible flowchart map
+  // Collapsible flowchart map & skills dropdown map
   const [expandedFlows, setExpandedFlows] = useState<Record<string, boolean>>({});
+  const [expandedSkills, setExpandedSkills] = useState<Record<string, boolean>>({});
+
+  // Close missing skills dropdown when tapping anywhere outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('[data-skills-dropdown="true"]')) {
+        setExpandedSkills({});
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const toggleFlow = (appId: string) => {
     setExpandedFlows(prev => ({
+      ...prev,
+      [appId]: !prev[appId]
+    }));
+  };
+
+  const toggleSkills = (appId: string) => {
+    setExpandedSkills(prev => ({
       ...prev,
       [appId]: !prev[appId]
     }));
@@ -140,7 +166,7 @@ export default function StudentApplicationsPage() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-[#1C1A1A]">My Applications</h1>
-        <p className="text-[#5E544A] text-xs mt-0.5">Track your recruitment milestones, interview rounds, and offer statuses</p>
+        <p className="text-[#5E544A] text-xs mt-0.5">Track your recruitment milestones, interview rounds, and placement predictions</p>
       </div>
 
       {/* Tabs */}
@@ -190,7 +216,98 @@ export default function StudentApplicationsPage() {
                       <Building2 size={18} />
                     </div>
                     <div>
-                      <h3 className="font-bold text-[#1C1A1A] text-sm">{app.drive?.role}</h3>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-bold text-[#1C1A1A] text-sm">{app.drive?.role}</h3>
+
+                        {/* ML Placement Prediction Score Pill */}
+                        {typeof app.placementProbability === 'number' && (
+                          <span 
+                            className={`px-2.5 py-0.5 rounded-full text-xs font-bold border flex items-center gap-1 shadow-2xs ${
+                              app.placementProbability >= 70
+                                ? 'bg-[#EBF7EE] text-[#2E7D32] border-[#C8E6C9]'
+                                : app.placementProbability >= 40
+                                ? 'bg-[#FFF8E1] text-[#B78103] border-[#FFE082]'
+                                : 'bg-[#FFEBEE] text-[#C62828] border-[#FFCDD2]'
+                            }`}
+                            title="ML Predicted Placement Probability"
+                          >
+                            <Sparkles size={12} className="animate-pulse" />
+                            <span>{app.placementProbability.toFixed(1)}% Placement Probability</span>
+                          </span>
+                        )}
+
+                        {/* Missing Skills Dropdown Button */}
+                        {app.missingSkills && (
+                          <div className="relative inline-block" data-skills-dropdown="true">
+                            <button
+                              onClick={() => toggleSkills(app.id)}
+                              className={`px-2.5 py-0.5 rounded-full text-xs font-bold border transition-all flex items-center gap-1 ${
+                                (app.missingSkills.length || 0) > 0
+                                  ? 'bg-[#FFF3E0] text-[#E65100] border-[#FFE0B2] hover:bg-[#FFE0B2]'
+                                  : 'bg-[#EBF7EE] text-[#2E7D32] border-[#C8E6C9]'
+                              }`}
+                            >
+                              <BookOpen size={12} />
+                              <span>Missing Skills ({app.missingSkills.length})</span>
+                              {expandedSkills[app.id] ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                            </button>
+
+                            {/* Dropdown Popover */}
+                            {expandedSkills[app.id] && (
+                              <div className="absolute left-0 mt-1 z-30 w-72 bg-white rounded-xl shadow-xl border border-[#E3D8C4] p-3 space-y-2.5 animate-scale-in select-text">
+                                <div className="flex items-center justify-between border-b border-[#E3D8C4] pb-1.5">
+                                  <span className="font-bold text-xs text-[#1C1A1A] flex items-center gap-1">
+                                    <Target size={13} className="text-[#8B1A1A]" /> Skill Gaps to Improve
+                                  </span>
+                                  <span className="text-[10px] text-[#8B7B6F] font-semibold">ML Engine</span>
+                                </div>
+
+                                {app.missingSkills.length > 0 ? (
+                                  <div className="space-y-2">
+                                    <p className="text-[11px] text-[#5E544A]">
+                                      Acquiring these missing skills will update your profile and boost your placement prediction score:
+                                    </p>
+                                    <div className="flex flex-wrap gap-1.5">
+                                      {(app.missingSkillsDetailed || app.missingSkills?.map(s => ({ skill: s, programId: null })) || []).map((item, sIdx) => {
+                                        const href = `/student/training?skill=${encodeURIComponent(item.skill)}${item.programId ? `&programId=${item.programId}#program-${item.programId}` : ''}`;
+                                        return (
+                                          <Link
+                                            key={sIdx}
+                                            href={href}
+                                            className="px-2.5 py-1 bg-[#F1E9D8] hover:bg-[#8B1A1A] text-[#8B1A1A] hover:text-white border border-[#E3D8C4] rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 group shadow-2xs"
+                                            title={item.programId ? `Go to exact training program for ${item.skill}` : `Search training for ${item.skill}`}
+                                          >
+                                            <span>{item.skill}</span>
+                                            <ArrowRight size={10} className="group-hover:translate-x-0.5 transition-transform" />
+                                          </Link>
+                                        );
+                                      })}
+                                    </div>
+                                    <div className="pt-1">
+                                      {(() => {
+                                        const firstItem = app.missingSkillsDetailed?.[0] || { skill: app.missingSkills?.[0] || '', programId: null };
+                                        const btnHref = `/student/training?skill=${encodeURIComponent(firstItem.skill)}${firstItem.programId ? `&programId=${firstItem.programId}#program-${firstItem.programId}` : ''}`;
+                                        return (
+                                          <Link
+                                            href={btnHref}
+                                            className="w-full text-center block px-3 py-1.5 bg-[#8B1A1A] hover:bg-[#A63030] text-white rounded-lg text-xs font-bold transition-all shadow-xs"
+                                          >
+                                            Enroll in {firstItem.skill || 'Skill'} Training →
+                                          </Link>
+                                        );
+                                      })()}
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="text-center py-2 text-xs text-[#2E7D32] font-semibold flex items-center justify-center gap-1">
+                                    <CheckCircle2 size={14} /> Great job! No missing required skills.
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
                       <p className="text-xs text-[#5E544A] font-semibold">{app.drive?.company?.name || 'Company'} • ₹{app.drive?.ctc} LPA</p>
                     </div>
                   </div>
